@@ -11,7 +11,7 @@
   </style>
 </head>
 <body>
-  <open-face id="face" audio-enabled></open-face>
+  <open-face id="face" audio-enabled tts></open-face>
   <script type="module" src="/open-face.js"></script>
   <script type="module">
     const prefs = {
@@ -34,6 +34,13 @@
 
     if (params.get("bg") === "transparent" || params.get("bg") === "chroma") {
       document.body.style.background = params.get("bg") === "chroma" ? "#00FF00" : "transparent";
+    }
+
+    if (params.has("tts") || prefs.get("tts", "") === "true") {
+      face.setAttribute("tts", "");
+      if (params.get("tts-voice")) face.setAttribute("tts-voice", params.get("tts-voice"));
+      if (params.get("tts-rate")) face.setAttribute("tts-rate", params.get("tts-rate"));
+      if (params.get("tts-pitch")) face.setAttribute("tts-pitch", params.get("tts-pitch"));
     }
   </script>
 </body>

@@ -59,8 +59,10 @@ export class OpenFaceElement extends HTMLElement {
 
 	// Built-in TTS (browser SpeechSynthesis)
 	private ttsEnabled = false;
+	private ttsActivated = false;
 	private ttsSpeaking = false;
 	private ttsLastText = "";
+	private ttsPendingText = "";
 
 	// Audio playback system
 	private audioEnabled = false;
@@ -157,6 +159,9 @@ export class OpenFaceElement extends HTMLElement {
 		if (this.textHideTimer) clearTimeout(this.textHideTimer);
 		this.textHideTimer = null;
 		if (this.ttsSpeaking) { window.speechSynthesis?.cancel(); this.ttsSpeaking = false; }
+		document.removeEventListener("click", this.ttsActivate);
+		document.removeEventListener("touchstart", this.ttsActivate);
+		document.removeEventListener("keydown", this.ttsActivate);
 
 		window.removeEventListener("message", this.onMessage);
 		document.removeEventListener("visibilitychange", this.onVisibilityChange);
@@ -632,29 +637,94 @@ export class OpenFaceElement extends HTMLElement {
 
 	// --- Built-in TTS ---
 
+	// Ranked voice name patterns by quality (from readium/speech voice database)
+	// veryHigh: Edge Natural voices > high: Google/Android/Apple > normal: everything else
+	private static readonly TTS_VOICE_RANK: Array<[RegExp, number]> = [
+		[/Natural\)/, 4],           // Edge Neural/Natural voices (veryHigh)
+		[/Google.*English/, 3],     // Chrome desktop Google voices (high)
+		[/\ben-/, 2],               // Any English-tagged voice (normal)
+	];
+
+	private ttsPickVoice(): SpeechSynthesisVoice | null {
+		const voices = speechSynthesis.getVoices();
+		if (!voices.length) return null;
+
+		const lang = this.getAttribute("tts-voice") || navigator.language || "en";
+		const langPrefix = lang.slice(0, 2).toLowerCase();
+
+		let best: SpeechSynthesisVoice | null = null;
+		let bestScore = -1;
+
+		for (const v of voices) {
+			const vLang = v.lang.toLowerCase();
+			if (!vLang.startsWith(langPrefix)) continue;
+
+			let score = 0;
+			if (v.localService) score += 1; // prefer local (no network latency)
+			for (const [pattern, bonus] of OpenFaceElement.TTS_VOICE_RANK) {
+				if (pattern.test(v.name)) { score += bonus; break; }
+			}
+			if (score > bestScore) { bestScore = score; best = v; }
+		}
+
+		return best;
+	}
+
+	private ttsActivate = (): void => {
+		// Warm up speechSynthesis with a silent utterance during user gesture
+		const silent = new SpeechSynthesisUtterance("");
+		speechSynthesis.speak(silent);
+		this.ttsActivated = true;
+		document.removeEventListener("click", this.ttsActivate);
+		document.removeEventListener("touchstart", this.ttsActivate);
+		document.removeEventListener("keydown", this.ttsActivate);
+		// Speak any pending text
+		if (this.ttsPendingText) {
+			const text = this.ttsPendingText;
+			this.ttsPendingText = "";
+			setTimeout(() => this.ttsSpeak(text), 100);
+		}
+	};
+
+	private ttsEnsureActivation(): void {
+		if (this.ttsActivated) return;
+		document.addEventListener("click", this.ttsActivate, { once: false });
+		document.addEventListener("touchstart", this.ttsActivate, { once: false });
+		document.addEventListener("keydown", this.ttsActivate, { once: false });
+	}
+
 	private ttsSpeak(text: string): void {
 		if (!this.ttsEnabled || !text || !window.speechSynthesis) return;
-		// Skip if audio pipeline is active (external TTS takes priority)
 		if (this.audioPlaying || this.audioQueue.length > 0) return;
-		// Skip if same text repeated
 		if (text === this.ttsLastText && this.ttsSpeaking) return;
-		this.ttsLastText = text;
 
-		// Cancel any ongoing speech
+		// Chrome requires user activation for speechSynthesis
+		if (!this.ttsActivated) {
+			this.ttsPendingText = text;
+			this.ttsEnsureActivation();
+			return;
+		}
+
+		// Ensure voices are loaded (Chrome loads them async)
+		if (!speechSynthesis.getVoices().length) {
+			speechSynthesis.addEventListener("voiceschanged", () => this.ttsSpeak(text), { once: true });
+			return;
+		}
+
+		this.ttsLastText = text;
 		window.speechSynthesis.cancel();
 
 		const utterance = new SpeechSynthesisUtterance(text);
 
-		// Apply optional customization
 		const rate = this.getAttribute("tts-rate");
 		const pitch = this.getAttribute("tts-pitch");
-		const voiceName = this.getAttribute("tts-voice");
 		if (rate) utterance.rate = Math.max(0.1, Math.min(10, parseFloat(rate)));
 		if (pitch) utterance.pitch = Math.max(0, Math.min(2, parseFloat(pitch)));
-		if (voiceName) {
-			const voice = speechSynthesis.getVoices().find(v => v.name === voiceName || v.lang === voiceName);
-			if (voice) utterance.voice = voice;
-		}
+
+		// Smart voice selection: explicit tts-voice overrides auto-pick
+		const voiceAttr = this.getAttribute("tts-voice");
+		const explicit = voiceAttr ? speechSynthesis.getVoices().find(v => v.name === voiceAttr) : null;
+		utterance.voice = explicit || this.ttsPickVoice() || null;
 
 		let boundaryToggle = false;
 		utterance.onstart = () => {
@@ -662,7 +732,6 @@ export class OpenFaceElement extends HTMLElement {
 			this.renderer?.setState({ state: "speaking" as any, amplitude: 0.5 });
 		};
 		utterance.onboundary = () => {
-			// Alternate amplitude on word boundaries for lip movement
 			boundaryToggle = !boundaryToggle;
 			this.renderer?.setState({ amplitude: boundaryToggle ? 0.7 : 0.3 });
 		};
@@ -677,6 +746,7 @@ export class OpenFaceElement extends HTMLElement {
 
 		window.speechSynthesis.speak(utterance);
 	}
+
 
 	// --- Text Overlay ---
 

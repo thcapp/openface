@@ -280,10 +280,13 @@ async function serveFaceViewer(username: string, env: Env): Promise<Response> {
 </head>
 <body>
 <open-face
+  id="face"
   server="wss://${escapeHtml(new URL("", "https://oface.io").host)}/${escapeHtml(username)}/ws/viewer"
   face="${escapeHtml(facePack)}"
   state="idle"
   emotion="neutral"
+  audio-enabled
+  tts
 ></open-face>
 <script type="module" src="/open-face.js"></script>
 </body>
