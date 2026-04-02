@@ -148,7 +148,7 @@ Schemas: [state.schema.json](protocol/v1/state.schema.json) | [face.schema.json]
 ```bash
 bun install              # Install dependencies
 bun run dev              # Build + start server on :9999
-bun run test             # 362+ tests
+bun run test             # 378+ tests
 bun run build            # Build all targets
 ```
 
