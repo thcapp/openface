@@ -286,9 +286,22 @@ async function serveFaceViewer(username: string, env: Env): Promise<Response> {
   state="idle"
   emotion="neutral"
   audio-enabled
-  tts
 ></open-face>
 <script type="module" src="/open-face.js"></script>
+<script>
+  (function () {
+    const params = new URLSearchParams(location.search);
+    const face = document.getElementById("face");
+    if (!face || !params.has("tts")) return;
+    face.setAttribute("tts", "");
+    const voice = params.get("tts-voice");
+    const rate = params.get("tts-rate");
+    const pitch = params.get("tts-pitch");
+    if (voice) face.setAttribute("tts-voice", voice);
+    if (rate) face.setAttribute("tts-rate", rate);
+    if (pitch) face.setAttribute("tts-pitch", pitch);
+  })();
+</script>
 </body>
 </html>`;
 

@@ -63,6 +63,7 @@ export class OpenFaceElement extends HTMLElement {
 	private ttsSpeaking = false;
 	private ttsLastText = "";
 	private ttsPendingText = "";
+	private audioAuthoritative = false;
 
 	// Audio playback system
 	private audioEnabled = false;
@@ -158,7 +159,7 @@ export class OpenFaceElement extends HTMLElement {
 
 		if (this.textHideTimer) clearTimeout(this.textHideTimer);
 		this.textHideTimer = null;
-		if (this.ttsSpeaking) { window.speechSynthesis?.cancel(); this.ttsSpeaking = false; }
+		this.stopTts();
 		document.removeEventListener("click", this.ttsActivate);
 		document.removeEventListener("touchstart", this.ttsActivate);
 		document.removeEventListener("keydown", this.ttsActivate);
@@ -168,6 +169,7 @@ export class OpenFaceElement extends HTMLElement {
 
 		this.stopAmplitudeLoop();
 		this.audioQueue = [];
+		this.audioAuthoritative = false;
 		this.audioCtx?.close().catch(() => {});
 		this.audioCtx = null;
 
@@ -483,30 +485,37 @@ export class OpenFaceElement extends HTMLElement {
 					}));
 				}
 				// Audio messages
-				if (data.type === "audio-seq") {
-					// New speech — flush old queue if seq is higher
-					if (data.seq > this.audioSeq) {
-						this.audioSeq = data.seq;
-						this.audioQueue = [];
-						this.audioStreamEnded = false;
-					}
-				}
-				if (data.type === "audio" && this.audioEnabled && data.data) {
-					if (typeof data.seq === "number") {
-						if (data.seq < this.audioSeq) return;
+					if (data.type === "audio-seq") {
+						// New speech — flush old queue if seq is higher
 						if (data.seq > this.audioSeq) {
 							this.audioSeq = data.seq;
 							this.audioQueue = [];
 							this.audioStreamEnded = false;
+							this.audioAuthoritative = true;
+							this.stopTts();
 						}
 					}
-					this.handleAudioChunk(data.data);
-				}
-				if (data.type === "audio-done" && this.audioEnabled) {
-					if (typeof data.seq !== "number" || data.seq === this.audioSeq) {
-						this.audioStreamEnded = true;
+					if (data.type === "audio" && this.audioEnabled && data.data) {
+						if (typeof data.seq === "number") {
+							if (data.seq < this.audioSeq) return;
+							if (data.seq > this.audioSeq) {
+								this.audioSeq = data.seq;
+								this.audioQueue = [];
+								this.audioStreamEnded = false;
+							}
+						}
+						this.audioAuthoritative = true;
+						this.stopTts();
+						this.handleAudioChunk(data.data);
 					}
-				}
+					if (data.type === "audio-done" && this.audioEnabled) {
+						if (typeof data.seq !== "number" || data.seq === this.audioSeq) {
+							this.audioStreamEnded = true;
+							if (!this.audioPlaying && this.audioQueue.length === 0) {
+								this.audioAuthoritative = false;
+							}
+						}
+					}
 			} catch { /* ignore */ }
 		};
 
@@ -544,6 +553,7 @@ export class OpenFaceElement extends HTMLElement {
 			}
 			this.ws = null;
 		}
+		this.audioAuthoritative = false;
 	}
 
 	private onVisibilityChange = (): void => {
@@ -594,6 +604,7 @@ export class OpenFaceElement extends HTMLElement {
 				// All audio finished — return to idle
 				this.renderer?.setState({ amplitude: 0 });
 				this.stopAmplitudeLoop();
+				this.audioAuthoritative = false;
 				this.dispatchEvent(new CustomEvent("face-audio-ended", { bubbles: true, composed: true }));
 			}
 			return;
@@ -693,9 +704,18 @@ export class OpenFaceElement extends HTMLElement {
 		document.addEventListener("keydown", this.ttsActivate, { once: false });
 	}
 
+	private stopTts(): void {
+		if (!window.speechSynthesis) return;
+		if (window.speechSynthesis.speaking || window.speechSynthesis.pending || this.ttsSpeaking) {
+			window.speechSynthesis.cancel();
+		}
+		this.ttsSpeaking = false;
+		this.ttsPendingText = "";
+	}
+
 	private ttsSpeak(text: string): void {
 		if (!this.ttsEnabled || !text || !window.speechSynthesis) return;
-		if (this.audioPlaying || this.audioQueue.length > 0) return;
+		if (this.audioAuthoritative || this.audioPlaying || this.audioQueue.length > 0) return;
 		if (text === this.ttsLastText && this.ttsSpeaking) return;
 
 		// Chrome requires user activation for speechSynthesis
