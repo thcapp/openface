@@ -19,6 +19,7 @@ packages/server/public/faces/
 packages/server-edge/public/
 site/open-face.js
 site/faces/
+.claude/
 site/
 docs/
 .base.yaml
