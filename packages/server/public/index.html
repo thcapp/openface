@@ -36,11 +36,19 @@
       document.body.style.background = params.get("bg") === "chroma" ? "#00FF00" : "transparent";
     }
 
-    if (params.has("tts") || prefs.get("tts", "") === "true") {
+    const ttsParam = params.get("tts");
+    const ttsFromParam = ttsParam !== null;
+    const ttsEnabled = ttsFromParam
+      ? !["0", "false", "off", "no"].includes(String(ttsParam).toLowerCase())
+      : prefs.get("tts", "") === "true";
+
+    if (ttsEnabled) {
       face.setAttribute("tts", "");
       if (params.get("tts-voice")) face.setAttribute("tts-voice", params.get("tts-voice"));
       if (params.get("tts-rate")) face.setAttribute("tts-rate", params.get("tts-rate"));
       if (params.get("tts-pitch")) face.setAttribute("tts-pitch", params.get("tts-pitch"));
+    } else {
+      face.removeAttribute("tts");
     }
   </script>
 </body>
