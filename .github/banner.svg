@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 320" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="900" y2="320" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0a0a14"/>
+      <stop offset="100%" stop-color="#0d0d1a"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4FC3F7" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#4FC3F7" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="320" rx="16" fill="url(#bg)"/>
+  <rect x="1" y="1" width="898" height="318" rx="15" fill="none" stroke="#1a1a2f" stroke-width="1"/>
+
+  <!-- Subtle glow behind face -->
+  <ellipse cx="160" cy="160" rx="120" ry="120" fill="url(#glow)"/>
+
+  <!-- Face background circle -->
+  <circle cx="160" cy="155" r="90" fill="#111119" stroke="#2a2a3f" stroke-width="2"/>
+
+  <!-- Face fill (the colored area) -->
+  <circle cx="160" cy="155" r="82" fill="#1a2a3a" opacity="0.5"/>
+
+  <!-- Left eye -->
+  <ellipse cx="130" cy="142" rx="14" ry="18" fill="#4FC3F7" opacity="0.9">
+    <animate attributeName="ry" values="18;18;2;18;18" dur="4s" repeatCount="indefinite" keyTimes="0;0.45;0.5;0.55;1"/>
+  </ellipse>
+  <!-- Left pupil -->
+  <circle cx="132" cy="140" r="6" fill="#0a0a14">
+    <animate attributeName="cx" values="132;134;130;132" dur="6s" repeatCount="indefinite"/>
+  </circle>
+  <!-- Left highlight -->
+  <circle cx="126" cy="136" r="3.5" fill="white" opacity="0.7"/>
+
+  <!-- Right eye -->
+  <ellipse cx="190" cy="142" rx="14" ry="18" fill="#4FC3F7" opacity="0.9">
+    <animate attributeName="ry" values="18;18;2;18;18" dur="4s" repeatCount="indefinite" keyTimes="0;0.45;0.5;0.55;1"/>
+  </ellipse>
+  <!-- Right pupil -->
+  <circle cx="192" cy="140" r="6" fill="#0a0a14">
+    <animate attributeName="cx" values="192;194;190;192" dur="6s" repeatCount="indefinite"/>
+  </circle>
+  <!-- Right highlight -->
+  <circle cx="186" cy="136" r="3.5" fill="white" opacity="0.7"/>
+
+  <!-- Mouth - gentle smile that animates -->
+  <path d="M140 178 Q160 192 180 178" stroke="#4FC3F7" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.8">
+    <animate attributeName="d" values="M140 178 Q160 192 180 178;M140 176 Q160 198 180 176;M140 178 Q160 192 180 178" dur="3s" repeatCount="indefinite"/>
+  </path>
+
+  <!-- Brows -->
+  <line x1="118" y1="120" x2="140" y2="118" stroke="#4FC3F7" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+  <line x1="180" y1="118" x2="202" y2="120" stroke="#4FC3F7" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- Text section -->
+  <text x="320" y="120" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="48" font-weight="700" fill="#e8e8f0" letter-spacing="-1">
+    <tspan fill="#9999b0">open</tspan><tspan fill="#e8e8f0">face</tspan>
+  </text>
+
+  <text x="320" y="160" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="18" fill="#9999b0">
+    Animated faces for AI agents
+  </text>
+
+  <!-- Feature pills -->
+  <rect x="320" y="185" width="120" height="28" rx="14" fill="#111119" stroke="#2a2a3f" stroke-width="1"/>
+  <text x="380" y="204" font-family="ui-monospace, monospace" font-size="12" fill="#4FC3F7" text-anchor="middle">11 states</text>
+
+  <rect x="452" y="185" width="130" height="28" rx="14" fill="#111119" stroke="#2a2a3f" stroke-width="1"/>
+  <text x="517" y="204" font-family="ui-monospace, monospace" font-size="12" fill="#4FC3F7" text-anchor="middle">13 emotions</text>
+
+  <rect x="594" y="185" width="118" height="28" rx="14" fill="#111119" stroke="#2a2a3f" stroke-width="1"/>
+  <text x="653" y="204" font-family="ui-monospace, monospace" font-size="12" fill="#4FC3F7" text-anchor="middle">zero deps</text>
+
+  <rect x="320" y="222" width="155" height="28" rx="14" fill="#111119" stroke="#2a2a3f" stroke-width="1"/>
+  <text x="397" y="241" font-family="ui-monospace, monospace" font-size="12" fill="#9999b0" text-anchor="middle">web component</text>
+
+  <rect x="487" y="222" width="135" height="28" rx="14" fill="#111119" stroke="#2a2a3f" stroke-width="1"/>
+  <text x="554" y="241" font-family="ui-monospace, monospace" font-size="12" fill="#9999b0" text-anchor="middle">built-in TTS</text>
+
+  <rect x="634" y="222" width="140" height="28" rx="14" fill="#111119" stroke="#2a2a3f" stroke-width="1"/>
+  <text x="704" y="241" font-family="ui-monospace, monospace" font-size="12" fill="#9999b0" text-anchor="middle">JSON protocol</text>
+
+  <!-- Tagline -->
+  <text x="320" y="285" font-family="ui-monospace, monospace" font-size="13" fill="#555570">
+    One protocol. Any agent. Any surface.
+  </text>
+</svg>
