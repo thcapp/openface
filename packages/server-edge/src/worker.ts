@@ -23,7 +23,7 @@ const RESERVED = new Set([
 	"api", "health", "dashboard", "open-face.js", "faces", "_headers",
 	"index.html", "favicon.ico", "robots.txt",
 	// App routes
-	"admin", "app", "auth", "billing", "blog", "cdn", "claim", "config",
+	"account", "admin", "app", "auth", "billing", "blog", "cdn", "claim", "config",
 	"default", "demo", "dev", "docs", "face", "gallery", "help", "info", "login",
 	"logout", "new", "null", "open", "openface", "ping", "public",
 	"register", "root", "settings", "signup", "static", "status",
@@ -116,23 +116,51 @@ export default {
 				return Response.json({ error: "Admin access required" }, { status: 403, headers: cors });
 			}
 			if (url.pathname === "/api/admin/gallery" && request.method === "GET") {
-				return handleAdminGalleryList(env);
+				return handleAdminGalleryList(env, cors);
 			}
 			if (url.pathname.startsWith("/api/admin/gallery/") && request.method === "DELETE") {
 				const id = url.pathname.slice("/api/admin/gallery/".length);
-				return handleAdminGalleryDelete(id, env);
+				return handleAdminGalleryDelete(id, env, cors);
 			}
 			if (url.pathname.startsWith("/api/admin/gallery/") && request.method === "PUT") {
 				const id = url.pathname.slice("/api/admin/gallery/".length);
-				return handleAdminGalleryUpdate(request, id, env);
+				return handleAdminGalleryUpdate(request, id, env, cors);
 			}
 			if (url.pathname === "/api/admin/claims" && request.method === "GET") {
-				return handleAdminClaimsList(env);
+				return handleAdminClaimsList(env, cors);
 			}
 			if (url.pathname.startsWith("/api/admin/claims/") && request.method === "DELETE") {
 				const username = url.pathname.slice("/api/admin/claims/".length);
-				return handleAdminClaimDelete(username, env);
+				return handleAdminClaimDelete(username, env, cors);
 			}
+		}
+
+		// ── Account API (authenticated user's own data) ──
+		if (url.pathname.startsWith("/api/account/") && request.method !== "OPTIONS") {
+			const token = getSessionToken(request);
+			const session = token ? await getSession(token, env) : null;
+			if (!session) {
+				return Response.json({ error: "Login required" }, { status: 401, headers: cors });
+			}
+			if (url.pathname === "/api/account/claims" && request.method === "GET") {
+				return handleAccountClaims(session.githubUser, env, cors);
+			}
+			if (url.pathname === "/api/account/gallery" && request.method === "GET") {
+				return handleAccountGallery(session.githubUser, env, cors);
+			}
+			if (url.pathname.startsWith("/api/account/claims/") && request.method === "DELETE") {
+				const username = url.pathname.slice("/api/account/claims/".length);
+				return handleAccountClaimDelete(session.githubUser, username, env, cors);
+			}
+			if (url.pathname.startsWith("/api/account/gallery/") && request.method === "DELETE") {
+				const id = url.pathname.slice("/api/account/gallery/".length);
+				return handleAccountGalleryDelete(session.githubUser, id, env, cors);
+			}
+			if (url.pathname.endsWith("/regenerate-key") && request.method === "POST") {
+				const username = url.pathname.slice("/api/account/claims/".length, -"/regenerate-key".length);
+				return handleAccountRegenerateKey(session.githubUser, username, env, cors);
+			}
+			return Response.json({ error: "Not found" }, { status: 404, headers: cors });
 		}
 
 		// ── Extract username from path ──
@@ -474,6 +502,7 @@ async function handleAuthMe(request: Request, env: Env, cors: Record<string, str
 		authenticated: true,
 		user: session.githubUser,
 		avatar: session.githubAvatar,
+		admin: isAdmin(session),
 	}, { headers: cors });
 }
 
@@ -829,45 +858,130 @@ async function handleGalleryGet(id: string, env: Env): Promise<Response> {
 
 // ── Admin handlers ──
 
-async function handleAdminGalleryList(env: Env): Promise<Response> {
-	if (!env.FACE_REGISTRY) return Response.json([], { headers: CORS });
+// ── Account API handlers ──
+
+async function handleAccountClaims(githubUser: string, env: Env, cors: Record<string, string>): Promise<Response> {
+	if (!env.FACE_REGISTRY) return Response.json([], { headers: cors });
 	try {
-		const index = await env.FACE_REGISTRY.get("gallery:__index__", "json") as unknown[] | null;
-		return Response.json(index || [], { headers: CORS });
+		const list = await env.FACE_REGISTRY.list({ prefix: "face:" });
+		const claims = [];
+		for (const key of list.keys) {
+			const data = await env.FACE_REGISTRY.get(key.name, "json") as Record<string, unknown> | null;
+			if (data && data.githubUser === githubUser) {
+				claims.push({
+					username: data.username,
+					face: data.face,
+					apiKey: data.apiKey,
+					createdAt: data.createdAt,
+					config: data.config || null,
+				});
+			}
+		}
+		return Response.json(claims, { headers: cors });
 	} catch {
-		return Response.json([], { headers: CORS });
+		return Response.json([], { headers: cors });
 	}
 }
 
-async function handleAdminGalleryDelete(id: string, env: Env): Promise<Response> {
-	if (!env.FACE_REGISTRY) return Response.json({ error: "No registry" }, { status: 503, headers: CORS });
+async function handleAccountGallery(githubUser: string, env: Env, cors: Record<string, string>): Promise<Response> {
+	if (!env.FACE_REGISTRY) return Response.json([], { headers: cors });
 	try {
+		const index = await env.FACE_REGISTRY.get("gallery:__index__", "json") as Record<string, unknown>[] | null;
+		const mine = (index || []).filter(p => p.author === githubUser && p.authorType === "github");
+		return Response.json(mine, { headers: cors });
+	} catch {
+		return Response.json([], { headers: cors });
+	}
+}
+
+async function handleAccountClaimDelete(githubUser: string, username: string, env: Env, cors: Record<string, string>): Promise<Response> {
+	if (!env.FACE_REGISTRY) return Response.json({ error: "No registry" }, { status: 503, headers: cors });
+	try {
+		const data = await env.FACE_REGISTRY.get(`face:${username}`, "json") as Record<string, unknown> | null;
+		if (!data) return Response.json({ error: "Not found" }, { status: 404, headers: cors });
+		if (data.githubUser !== githubUser) return Response.json({ error: "Not yours" }, { status: 403, headers: cors });
+		await env.FACE_REGISTRY.delete(`face:${username}`);
+		return Response.json({ ok: true, deleted: username }, { headers: cors });
+	} catch {
+		return Response.json({ error: "Failed" }, { status: 500, headers: cors });
+	}
+}
+
+async function handleAccountGalleryDelete(githubUser: string, id: string, env: Env, cors: Record<string, string>): Promise<Response> {
+	if (!env.FACE_REGISTRY) return Response.json({ error: "No registry" }, { status: 503, headers: cors });
+	try {
+		const record = await env.FACE_REGISTRY.get(`gallery:${id}`, "json") as Record<string, unknown> | null;
+		if (!record) return Response.json({ error: "Not found" }, { status: 404, headers: cors });
+		if (record.author !== githubUser || record.authorType !== "github") {
+			return Response.json({ error: "Not yours" }, { status: 403, headers: cors });
+		}
 		await env.FACE_REGISTRY.delete(`gallery:${id}`);
-		// Remove from index
 		const index = await env.FACE_REGISTRY.get("gallery:__index__", "json") as Record<string, unknown>[] | null;
 		if (index) {
 			const filtered = index.filter((p: Record<string, unknown>) => p.id !== id);
 			await env.FACE_REGISTRY.put("gallery:__index__", JSON.stringify(filtered));
 		}
-		return Response.json({ ok: true, deleted: id }, { headers: CORS });
+		return Response.json({ ok: true, deleted: id }, { headers: cors });
 	} catch {
-		return Response.json({ error: "Failed" }, { status: 500, headers: CORS });
+		return Response.json({ error: "Failed" }, { status: 500, headers: cors });
 	}
 }
 
-async function handleAdminGalleryUpdate(request: Request, id: string, env: Env): Promise<Response> {
-	if (!env.FACE_REGISTRY) return Response.json({ error: "No registry" }, { status: 503, headers: CORS });
+async function handleAccountRegenerateKey(githubUser: string, username: string, env: Env, cors: Record<string, string>): Promise<Response> {
+	if (!env.FACE_REGISTRY) return Response.json({ error: "No registry" }, { status: 503, headers: cors });
+	try {
+		const data = await env.FACE_REGISTRY.get(`face:${username}`, "json") as Record<string, unknown> | null;
+		if (!data) return Response.json({ error: "Not found" }, { status: 404, headers: cors });
+		if (data.githubUser !== githubUser) return Response.json({ error: "Not yours" }, { status: 403, headers: cors });
+		const bytes = new Uint8Array(24);
+		crypto.getRandomValues(bytes);
+		const newKey = "oface_ak_" + Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+		data.apiKey = newKey;
+		await env.FACE_REGISTRY.put(`face:${username}`, JSON.stringify(data));
+		return Response.json({ ok: true, username, apiKey: newKey }, { headers: cors });
+	} catch {
+		return Response.json({ error: "Failed" }, { status: 500, headers: cors });
+	}
+}
+
+// ── Admin API handlers ──
+
+async function handleAdminGalleryList(env: Env, cors: Record<string, string>): Promise<Response> {
+	if (!env.FACE_REGISTRY) return Response.json([], { headers: cors });
+	try {
+		const index = await env.FACE_REGISTRY.get("gallery:__index__", "json") as unknown[] | null;
+		return Response.json(index || [], { headers: cors });
+	} catch {
+		return Response.json([], { headers: cors });
+	}
+}
+
+async function handleAdminGalleryDelete(id: string, env: Env, cors: Record<string, string>): Promise<Response> {
+	if (!env.FACE_REGISTRY) return Response.json({ error: "No registry" }, { status: 503, headers: cors });
+	try {
+		await env.FACE_REGISTRY.delete(`gallery:${id}`);
+		const index = await env.FACE_REGISTRY.get("gallery:__index__", "json") as Record<string, unknown>[] | null;
+		if (index) {
+			const filtered = index.filter((p: Record<string, unknown>) => p.id !== id);
+			await env.FACE_REGISTRY.put("gallery:__index__", JSON.stringify(filtered));
+		}
+		return Response.json({ ok: true, deleted: id }, { headers: cors });
+	} catch {
+		return Response.json({ error: "Failed" }, { status: 500, headers: cors });
+	}
+}
+
+async function handleAdminGalleryUpdate(request: Request, id: string, env: Env, cors: Record<string, string>): Promise<Response> {
+	if (!env.FACE_REGISTRY) return Response.json({ error: "No registry" }, { status: 503, headers: cors });
 	try {
 		const updates = await request.json() as Record<string, unknown>;
 		const raw = await env.FACE_REGISTRY.get(`gallery:${id}`, "json") as Record<string, unknown> | null;
-		if (!raw) return Response.json({ error: "Not found" }, { status: 404, headers: CORS });
-		// Allow updating: featured, tags, name, description
+		if (!raw) return Response.json({ error: "Not found" }, { status: 404, headers: cors });
 		if (typeof updates.featured === "boolean") raw.featured = updates.featured;
 		if (typeof updates.name === "string") raw.name = updates.name;
 		if (typeof updates.description === "string") raw.description = updates.description;
 		if (Array.isArray(updates.tags)) raw.tags = updates.tags;
 		await env.FACE_REGISTRY.put(`gallery:${id}`, JSON.stringify(raw));
-		// Update index entry too
 		const index = await env.FACE_REGISTRY.get("gallery:__index__", "json") as Record<string, unknown>[] | null;
 		if (index) {
 			const entry = index.find((p: Record<string, unknown>) => p.id === id);
@@ -879,14 +993,14 @@ async function handleAdminGalleryUpdate(request: Request, id: string, env: Env):
 				await env.FACE_REGISTRY.put("gallery:__index__", JSON.stringify(index));
 			}
 		}
-		return Response.json({ ok: true, id }, { headers: CORS });
+		return Response.json({ ok: true, id }, { headers: cors });
 	} catch {
-		return Response.json({ error: "Failed" }, { status: 500, headers: CORS });
+		return Response.json({ error: "Failed" }, { status: 500, headers: cors });
 	}
 }
 
-async function handleAdminClaimsList(env: Env): Promise<Response> {
-	if (!env.FACE_REGISTRY) return Response.json([], { headers: CORS });
+async function handleAdminClaimsList(env: Env, cors: Record<string, string>): Promise<Response> {
+	if (!env.FACE_REGISTRY) return Response.json([], { headers: cors });
 	try {
 		const list = await env.FACE_REGISTRY.list({ prefix: "face:" });
 		const claims = [];
@@ -901,19 +1015,19 @@ async function handleAdminClaimsList(env: Env): Promise<Response> {
 				});
 			}
 		}
-		return Response.json(claims, { headers: CORS });
+		return Response.json(claims, { headers: cors });
 	} catch {
-		return Response.json([], { headers: CORS });
+		return Response.json([], { headers: cors });
 	}
 }
 
-async function handleAdminClaimDelete(username: string, env: Env): Promise<Response> {
-	if (!env.FACE_REGISTRY) return Response.json({ error: "No registry" }, { status: 503, headers: CORS });
+async function handleAdminClaimDelete(username: string, env: Env, cors: Record<string, string>): Promise<Response> {
+	if (!env.FACE_REGISTRY) return Response.json({ error: "No registry" }, { status: 503, headers: cors });
 	try {
 		await env.FACE_REGISTRY.delete(`face:${username}`);
-		return Response.json({ ok: true, deleted: username }, { headers: CORS });
+		return Response.json({ ok: true, deleted: username }, { headers: cors });
 	} catch {
-		return Response.json({ error: "Failed" }, { status: 500, headers: CORS });
+		return Response.json({ error: "Failed" }, { status: 500, headers: cors });
 	}
 }
 

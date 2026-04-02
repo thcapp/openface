@@ -288,6 +288,17 @@ Agent ─ {state:"idle"} ──►│                        │
 
 The `seq` field allows viewers to discard audio from a previous utterance when a new one starts. When the viewer receives `audio-seq` with a new sequence number, it flushes any buffered audio from the old sequence.
 
+### Built-in TTS Fallback
+
+The `<open-face>` element supports browser-native text-to-speech via the `tts` attribute. When enabled and no audio chunks are being received, the element uses `window.speechSynthesis` to speak any `text` field from state messages.
+
+- External audio pipeline always takes priority over built-in TTS
+- Face auto-transitions to `speaking` on utterance start, `idle` on end
+- Amplitude is simulated from word boundary events
+- Optional tuning: `tts-voice`, `tts-rate`, `tts-pitch` attributes
+
+This provides a zero-config speech path for agents that don't have a TTS server.
+
 ## Server Behaviors
 
 ### Idle Timeout

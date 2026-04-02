@@ -42,6 +42,10 @@
 | `style-variant` | classic, gradient, or minimal |
 | `audio-enabled` | Enable audio playback + lip sync from WS |
 | `volume` | Audio volume (0-1, default 0.8) |
+| `tts` | Enable built-in browser text-to-speech (fallback when no audio chunks) |
+| `tts-voice` | TTS voice name or language code (e.g. "en-US") |
+| `tts-rate` | TTS speech rate (0.1-10, default 1) |
+| `tts-pitch` | TTS pitch (0-2, default 1) |
 | `debug-overlay` | Enable renderer debug guides (eye bounds/reference lines) |
 
 ## Events
@@ -69,6 +73,22 @@ When `audio-enabled` is set, the element handles audio natively:
 - Caps queue length to prevent unbounded growth during long streams
 - Honors `audio-done.seq` so stream completion matches the active sequence
 - Dispatches `face-audio-ended` when active stream chunks finish
+
+## Built-in TTS
+
+When the `tts` attribute is set, the element speaks text aloud using the browser's SpeechSynthesis API — no external TTS server needed:
+
+```html
+<open-face server="ws://localhost:9999/ws/viewer" tts></open-face>
+```
+
+- Text received via WebSocket or postMessage is spoken automatically
+- Face transitions to `speaking` with simulated amplitude from word boundaries
+- Returns to `idle` when speech ends
+- **External audio takes priority** — if WAV chunks are flowing via the audio pipeline, TTS stays silent
+- Customize with `tts-voice`, `tts-rate`, `tts-pitch` attributes
+
+This is a zero-config fallback. For production quality, use the audio pipeline with your own TTS model.
 
 ## Accessibility
 

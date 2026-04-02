@@ -35,7 +35,7 @@ function createShadowContent(): DocumentFragment {
 
 export class OpenFaceElement extends HTMLElement {
 	static get observedAttributes() {
-		return ["state", "emotion", "amplitude", "look-x", "look-y", "color", "face", "server", "style-variant", "audio-enabled", "volume", "debug-overlay"];
+		return ["state", "emotion", "amplitude", "look-x", "look-y", "color", "face", "server", "style-variant", "audio-enabled", "volume", "debug-overlay", "tts", "tts-voice", "tts-rate", "tts-pitch"];
 	}
 
 	private renderer: FaceRenderer | null = null;
@@ -56,6 +56,11 @@ export class OpenFaceElement extends HTMLElement {
 	// Text overlay
 	private textOverlay: HTMLDivElement | null = null;
 	private textHideTimer: ReturnType<typeof setTimeout> | null = null;
+
+	// Built-in TTS (browser SpeechSynthesis)
+	private ttsEnabled = false;
+	private ttsSpeaking = false;
+	private ttsLastText = "";
 
 	// Audio playback system
 	private audioEnabled = false;
@@ -123,6 +128,18 @@ export class OpenFaceElement extends HTMLElement {
 		if (this.serverUrl) this.wsConnect();
 		void OpenFaceElement.preloadFacePacks();
 
+		// Apply initial attributes that were set before renderer existed
+		const initState = this.getAttribute("state");
+		const initEmotion = this.getAttribute("emotion");
+		const initAmplitude = this.getAttribute("amplitude");
+		if (initState || initEmotion || initAmplitude) {
+			const update: Record<string, unknown> = {};
+			if (initState) update.state = initState;
+			if (initEmotion) update.emotion = initEmotion;
+			if (initAmplitude) update.amplitude = parseFloat(initAmplitude);
+			this.renderer.setState(update as any);
+		}
+
 		const faceName = this.getAttribute("face");
 		if (faceName) this.loadFace(faceName);
 	}
@@ -139,6 +156,7 @@ export class OpenFaceElement extends HTMLElement {
 
 		if (this.textHideTimer) clearTimeout(this.textHideTimer);
 		this.textHideTimer = null;
+		if (this.ttsSpeaking) { window.speechSynthesis?.cancel(); this.ttsSpeaking = false; }
 
 		window.removeEventListener("message", this.onMessage);
 		document.removeEventListener("visibilitychange", this.onVisibilityChange);
@@ -198,6 +216,14 @@ export class OpenFaceElement extends HTMLElement {
 				break;
 			case "debug-overlay":
 				this.renderer?.setDebugOverlay(newVal !== null && newVal !== "false");
+				break;
+			case "tts":
+				this.ttsEnabled = newVal !== null && newVal !== "false";
+				break;
+			case "tts-voice":
+			case "tts-rate":
+			case "tts-pitch":
+				// Read on demand when speaking
 				break;
 		}
 	}
@@ -402,7 +428,10 @@ export class OpenFaceElement extends HTMLElement {
 			if (!data || data.type !== "face-state") return;
 			this.renderer?.setState(data as StateUpdate);
 			if (data.state || data.emotion) this.updateAriaLabel();
-			if ("text" in data) this.showText(data.text, data.textDuration);
+			if ("text" in data) {
+				this.showText(data.text, data.textDuration);
+				if (data.text) this.ttsSpeak(data.text);
+			}
 		} catch { /* ignore */ }
 	};
 
@@ -438,7 +467,10 @@ export class OpenFaceElement extends HTMLElement {
 				if (data.type === "state") {
 					this.renderer?.setState(data as StateUpdate);
 					if (data.state || data.emotion) this.updateAriaLabel();
-					if ("text" in data) this.showText(data.text, data.textDuration);
+					if ("text" in data) {
+						this.showText(data.text, data.textDuration);
+						if (data.text) this.ttsSpeak(data.text);
+					}
 					this.dispatchEvent(new CustomEvent("face-state-data", {
 						bubbles: true,
 						composed: true,
@@ -596,6 +628,54 @@ export class OpenFaceElement extends HTMLElement {
 			this.audioRafId = requestAnimationFrame(tick);
 		};
 		this.audioRafId = requestAnimationFrame(tick);
+	}
+
+	// --- Built-in TTS ---
+
+	private ttsSpeak(text: string): void {
+		if (!this.ttsEnabled || !text || !window.speechSynthesis) return;
+		// Skip if audio pipeline is active (external TTS takes priority)
+		if (this.audioPlaying || this.audioQueue.length > 0) return;
+		// Skip if same text repeated
+		if (text === this.ttsLastText && this.ttsSpeaking) return;
+		this.ttsLastText = text;
+
+		// Cancel any ongoing speech
+		window.speechSynthesis.cancel();
+
+		const utterance = new SpeechSynthesisUtterance(text);
+
+		// Apply optional customization
+		const rate = this.getAttribute("tts-rate");
+		const pitch = this.getAttribute("tts-pitch");
+		const voiceName = this.getAttribute("tts-voice");
+		if (rate) utterance.rate = Math.max(0.1, Math.min(10, parseFloat(rate)));
+		if (pitch) utterance.pitch = Math.max(0, Math.min(2, parseFloat(pitch)));
+		if (voiceName) {
+			const voice = speechSynthesis.getVoices().find(v => v.name === voiceName || v.lang === voiceName);
+			if (voice) utterance.voice = voice;
+		}
+
+		let boundaryToggle = false;
+		utterance.onstart = () => {
+			this.ttsSpeaking = true;
+			this.renderer?.setState({ state: "speaking" as any, amplitude: 0.5 });
+		};
+		utterance.onboundary = () => {
+			// Alternate amplitude on word boundaries for lip movement
+			boundaryToggle = !boundaryToggle;
+			this.renderer?.setState({ amplitude: boundaryToggle ? 0.7 : 0.3 });
+		};
+		utterance.onend = () => {
+			this.ttsSpeaking = false;
+			this.renderer?.setState({ state: "idle" as any, amplitude: 0 });
+		};
+		utterance.onerror = () => {
+			this.ttsSpeaking = false;
+			this.renderer?.setState({ amplitude: 0 });
+		};
+
+		window.speechSynthesis.speak(utterance);
 	}
 
 	// --- Text Overlay ---

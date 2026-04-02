@@ -49,6 +49,11 @@ Connect to a live server:
 <open-face server="ws://localhost:9999/ws/viewer"></open-face>
 ```
 
+Built-in text-to-speech (no TTS server needed):
+```html
+<open-face server="ws://localhost:9999/ws/viewer" tts></open-face>
+```
+
 ## Builder
 
 Visual face pack editor at [openface.live/builder](https://openface.live/builder). Create, customize, and publish face packs to the [community gallery](https://openface.live/gallery).
@@ -132,6 +137,8 @@ Single authority model — no race conditions:
 - **Plugin** owns state transitions
 - **TTS server** owns audio delivery (WAV chunks to `/api/audio`)
 - **Viewer** owns amplitude (Web Audio API extracts RMS from waveform)
+
+**Built-in TTS fallback**: Add the `tts` attribute to `<open-face>` and any text in state messages is spoken via the browser's SpeechSynthesis API. No TTS server needed. External audio always takes priority.
 
 ## Integrations
 
