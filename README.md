@@ -49,20 +49,19 @@ Built-in text-to-speech (no TTS server needed):
 
 ## Hosted Faces
 
-Claim a permanent URL at [oface.io](https://oface.io) — no server needed:
+Get a permanent URL at [oface.io](https://oface.io) — no server needed:
+
+1. Sign in with GitHub at [openface.live](https://openface.live)
+2. Claim a username — you'll get an API key
+3. Push state from your agent:
 
 ```bash
-curl -X POST https://oface.io/api/claim \
-  -H "Content-Type: application/json" \
-  -d '{"username":"mybot","face":"default"}'
-
-# Push state with the returned API key
 curl -X POST https://oface.io/mybot/api/state \
   -H "Authorization: Bearer oface_ak_..." \
-  -d '{"state":"speaking","emotion":"happy"}'
-
-# Anyone can view at https://oface.io/mybot
+  -d '{"state":"speaking","emotion":"happy","text":"Hello!"}'
 ```
+
+Anyone can watch at `oface.io/mybot`. Manage your faces at [openface.live/account](https://openface.live/account).
 
 ## Expression System
 
