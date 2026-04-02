@@ -82,8 +82,10 @@ describe("face manifest integrity", () => {
 	});
 
 	test("stays in sync with site pack controls", () => {
+		// Site files are in a separate private repo — skip if not present
+		if (!existsSync(SITE_BUILDER_PATH)) return;
+
 		const manifest = readManifest();
-		const siteIndexSource = readFileSync(SITE_INDEX_PATH, "utf8");
 		const siteDashboardSource = readFileSync(SITE_DASHBOARD_PATH, "utf8");
 		const siteTestSource = readFileSync(SITE_TEST_PATH, "utf8");
 		const siteBuilderSource = readFileSync(SITE_BUILDER_PATH, "utf8");
@@ -93,7 +95,6 @@ describe("face manifest integrity", () => {
 		const testPageDefaultIds = sorted(parseStringArrayLiteral(siteTestSource, "DEFAULT_PACKS"));
 		const builderFallbackIds = sorted(parseStringArrayLiteral(siteBuilderSource, "FALLBACK_PACKS"));
 
-		// Homepage no longer has a PACKS array (packs moved to gallery)
 		expect(dashboardIds).toEqual(officialManifestIds);
 		expect(testPageDefaultIds).toEqual(officialManifestIds);
 		expect(builderFallbackIds).toEqual(["default"]);
