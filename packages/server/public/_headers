@@ -1,0 +1,14 @@
+/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/open-face.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/faces/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/dashboard.html
+  Cache-Control: public, max-age=0, must-revalidate

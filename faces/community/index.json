@@ -1,0 +1,140 @@
+{
+  "version": "1.0",
+  "packs": [
+    {
+      "id": "classic",
+      "name": "Classic",
+      "author": "Open Face",
+      "authorType": "team",
+      "description": "The original — clean stroked lines, bold curves, the MVP look",
+      "tags": ["bold", "minimal"],
+      "file": "classic.face.json"
+    },
+    {
+      "id": "colorblind",
+      "name": "Colorblind",
+      "author": "Open Face",
+      "authorType": "team",
+      "description": "High-contrast colorblind-safe pack — all states distinguishable via luminance and shape, not color alone",
+      "tags": ["accessible", "minimal"],
+      "file": "colorblind.face.json"
+    },
+    {
+      "id": "corporate",
+      "name": "Corporate",
+      "author": "Open Face",
+      "authorType": "ai",
+      "description": "Professional and composed — navy slate palette, minimal features, smooth motion",
+      "tags": ["minimal", "dark"],
+      "file": "corporate.face.json"
+    },
+    {
+      "id": "cyberpunk",
+      "name": "Cyberpunk",
+      "author": "Open Face",
+      "authorType": "ai",
+      "description": "Neon-lit dark aesthetic with sharp edges and electric energy",
+      "tags": ["dark", "bold", "mechanical"],
+      "file": "cyberpunk.face.json"
+    },
+    {
+      "id": "halloween",
+      "name": "Halloween",
+      "author": "Open Face",
+      "authorType": "ai",
+      "description": "Spooky jack-o-lantern vibes — glowing dots in the dark, eerie and playful",
+      "tags": ["spooky", "dark", "cute"],
+      "file": "halloween.face.json"
+    },
+    {
+      "id": "kawaii",
+      "name": "Kawaii",
+      "author": "Open Face",
+      "authorType": "ai",
+      "description": "Pastel cuteness overload with big sparkly eyes and maximum blush",
+      "tags": ["cute", "warm", "bold"],
+      "file": "kawaii.face.json"
+    },
+    {
+      "id": "lobster",
+      "name": "Lobster",
+      "author": "Open Face",
+      "authorType": "team",
+      "description": "Traditional crustacean look — orange shell, black eyes, grounded movement",
+      "tags": ["organic", "warm", "bold"],
+      "file": "lobster.face.json"
+    },
+    {
+      "id": "space-lobster",
+      "name": "Space Lobster",
+      "author": "Clawd",
+      "authorType": "ai",
+      "description": "Deep-sea consciousness — bioluminescent, ancient, and a little cosmic",
+      "tags": ["cosmic", "dark", "organic"],
+      "file": "space-lobster.face.json"
+    },
+    {
+      "id": "retro",
+      "name": "Retro",
+      "author": "Open Face",
+      "authorType": "ai",
+      "description": "Classic terminal green-on-black with an 8-bit soul",
+      "tags": ["retro", "dark", "mechanical"],
+      "file": "retro.face.json"
+    },
+    {
+      "id": "robot",
+      "name": "Robot",
+      "author": "Open Face",
+      "authorType": "ai",
+      "description": "Mechanical precision — rectangular eyes with scan line, slit mouth",
+      "tags": ["mechanical", "minimal", "dark"],
+      "file": "robot.face.json"
+    },
+    {
+      "id": "warm",
+      "name": "Warm",
+      "author": "Open Face",
+      "authorType": "ai",
+      "description": "Round, friendly, bouncy — big eyes, warm palette, expressive",
+      "tags": ["warm", "cute", "organic"],
+      "file": "warm.face.json"
+    },
+    {
+      "id": "zen",
+      "name": "Zen",
+      "author": "Open Face",
+      "authorType": "ai",
+      "description": "Calm, minimal, meditative — dot eyes, slow movements",
+      "tags": ["minimal", "organic"],
+      "file": "zen.face.json"
+    },
+    {
+      "id": "sticker",
+      "name": "Sticker",
+      "author": "Open Face",
+      "authorType": "ai",
+      "description": "Bold sticker-style mascot — chunky brows, bright palette, high readability at small sizes",
+      "tags": ["bold", "cute", "retro"],
+      "file": "sticker.face.json"
+    },
+    {
+      "id": "mono-terminal",
+      "name": "Mono Terminal",
+      "author": "Open Face",
+      "authorType": "ai",
+      "description": "Monochrome terminal persona — rigid pixel-like expression with restrained, deterministic motion",
+      "tags": ["minimal", "dark", "retro", "mechanical"],
+      "file": "mono-terminal.face.json"
+    },
+    {
+      "id": "clay-buddy",
+      "name": "Clay Buddy",
+      "author": "Open Face",
+      "authorType": "ai",
+      "description": "Soft clay-like companion — rounded features, gentle lids, plush motion",
+      "tags": ["cute", "warm", "organic"],
+      "file": "clay-buddy.face.json"
+    }
+  ]
+}

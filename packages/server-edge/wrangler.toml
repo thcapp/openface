@@ -1,0 +1,31 @@
+name = "openface-server"
+main = "src/worker.ts"
+compatibility_date = "2024-12-01"
+workers_dev = true
+
+routes = [
+  { pattern = "oface.io/*", zone_name = "oface.io" }
+]
+
+[assets]
+directory = "./public"
+
+[durable_objects]
+bindings = [
+  { name = "FACE_ROOM", class_name = "FaceRoom" }
+]
+
+[[kv_namespaces]]
+binding = "FACE_REGISTRY"
+id = "67467d8c47e04fa188fdfc144db12057"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["FaceRoom"]
+
+[vars]
+FACE_API_KEY = ""
+OPENCLAW_GATEWAY_URL = ""
+OPENCLAW_GATEWAY_TOKEN = ""
+OPENCLAW_SESSION_KEY = "agent:main"
+# GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are set as encrypted secrets via `wrangler secret put`

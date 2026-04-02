@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openface.live/protocol/v1/state.schema.json",
+  "title": "Open Face State Message",
+  "description": "JSON schema for Open Face state messages. All fields are optional — partial updates merge into current state.",
+  "type": "object",
+  "properties": {
+    "state": {
+      "type": "string",
+      "enum": ["idle", "thinking", "speaking", "listening", "reacting", "puzzled", "alert", "working", "sleeping", "waiting", "loading"],
+      "description": "Current face state (activity)"
+    },
+    "emotion": {
+      "type": "string",
+      "enum": ["neutral", "happy", "sad", "confused", "excited", "concerned", "surprised", "playful", "frustrated", "skeptical", "determined", "embarrassed", "proud"],
+      "description": "Emotion overlay (mood)"
+    },
+    "emotionSecondary": {
+      "type": "string",
+      "enum": ["neutral", "happy", "sad", "confused", "excited", "concerned", "surprised", "playful", "frustrated", "skeptical", "determined", "embarrassed", "proud"],
+      "description": "Secondary emotion for blending compound expressions"
+    },
+    "emotionBlend": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.0,
+      "description": "Blend factor between primary and secondary emotion (0 = primary only, 1 = secondary only)"
+    },
+    "intensity": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 1.0,
+      "description": "Emotion intensity multiplier (0 = neutral, 1 = full expression)"
+    },
+    "amplitude": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Mouth openness, typically driven by audio volume (0 = closed, 1 = wide open)"
+    },
+    "lookAt": {
+      "type": "object",
+      "properties": {
+        "x": { "type": "number", "minimum": -1.0, "maximum": 1.0 },
+        "y": { "type": "number", "minimum": -1.0, "maximum": 1.0 }
+      },
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "description": "Eye gaze target. (0,0)=center, (-1,-1)=top-left, (1,1)=bottom-right"
+    },
+    "color": {
+      "type": ["string", "null"],
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "description": "Override face background color (hex). null = use state/emotion default"
+    },
+    "winkLeft": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Left eye closure (0 = open, 1 = closed)"
+    },
+    "winkRight": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Right eye closure (0 = open, 1 = closed)"
+    },
+    "progress": {
+      "type": ["number", "null"],
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Task progress for working/loading states (0 = just started, 1 = complete). null = indeterminate"
+    },
+    "text": {
+      "type": ["string", "null"],
+      "description": "Speech bubble text. No protocol length limit; clients may impose UX limits. null = clear"
+    },
+    "textDuration": {
+      "type": "number",
+      "minimum": 500,
+      "maximum": 30000,
+      "default": 3000,
+      "description": "Auto-clear text after this many milliseconds"
+    },
+    "detail": {
+      "type": ["string", "null"],
+      "description": "Extended text content. No protocol length limit. null = clear"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["state", "reset", "ping", "pong", "audio", "audio-done", "audio-seq", "error"],
+      "description": "Message type for WebSocket framing. Omit for HTTP."
+    },
+    "data": {
+      "type": "string",
+      "description": "Base64-encoded audio data (type=audio messages only)"
+    },
+    "format": {
+      "type": "string",
+      "enum": ["wav"],
+      "description": "Audio format (type=audio messages only)"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Audio sequence number for stream identity (type=audio/audio-done/audio-seq)"
+    },
+    "message": {
+      "type": "string",
+      "description": "Error message text (type=error messages only)"
+    }
+  },
+  "additionalProperties": false
+}

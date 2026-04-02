@@ -1,0 +1,207 @@
+{
+  "$type": "face",
+  "$version": "1.0.0",
+  "meta": {
+    "name": "Zen",
+    "author": "Agent Face",
+    "description": "Calm, minimal, meditative — dot eyes, slow movements"
+  },
+  "geometry": {
+    "shape": "fullscreen",
+    "head": {
+      "shape": "circle",
+      "width": 0.82,
+      "height": 0.82,
+      "verticalPosition": 0.005,
+      "strokeWidth": 0.003
+    },
+    "eyes": {
+      "style": "dot",
+      "baseWidth": 0.035,
+      "baseHeight": 0.035,
+      "spacing": 0.14,
+      "verticalPosition": -0.04,
+      "stateScales": {
+        "idle": [
+          1,
+          1
+        ],
+        "thinking": [
+          0.9,
+          0.9
+        ],
+        "working": [
+          0.95,
+          0.95
+        ],
+        "speaking": [
+          1,
+          1
+        ],
+        "listening": [
+          1.1,
+          1.1
+        ],
+        "reacting": [
+          1.2,
+          1.2
+        ],
+        "puzzled": [
+          0.9,
+          1.1
+        ],
+        "alert": [
+          1.3,
+          1.3
+        ],
+        "sleeping": [
+          1,
+          1
+        ],
+        "waiting": [
+          1,
+          1
+        ],
+        "loading": [
+          0.88,
+          0.88
+        ]
+      },
+      "constraints": {
+        "scaleMin": 0.93,
+        "scaleMax": 1.08
+      },
+      "specular": {
+        "enabled": false,
+        "size": 0,
+        "shiftX": 0,
+        "shiftY": 0,
+        "lookFollow": 0.16,
+        "alpha": 1
+      }
+    },
+    "mouth": {
+      "width": 0.12,
+      "verticalPosition": 0.11,
+      "style": "curve",
+      "speakingBase": 0.08,
+      "renderer": "line",
+      "rendererByState": {
+        "speaking": "fill"
+      },
+      "constraints": {
+        "openMin": 0,
+        "openMax": 0.30,
+        "widthMin": -0.18,
+        "widthMax": 0.18
+      }
+    },
+    "brows": {
+      "enabled": false,
+      "renderer": "none",
+      "constraints": {
+        "min": 0,
+        "max": 0
+      }
+    },
+    "blush": {
+      "enabled": false
+    },
+    "locks": {
+      "eyes": true,
+      "mouth": true,
+      "brows": true
+    }
+  },
+  "palette": {
+    "feature": "#3D3D3D",
+    "states": {
+      "idle": "#B5C4B1",
+      "thinking": "#B8B3C4",
+      "speaking": "#B9C4B3",
+      "listening": "#B3BFC8",
+      "reacting": "#C8C0AD",
+      "puzzled": "#C4BAB0",
+      "alert": "#C8B0AE",
+      "working": "#B3BCC8",
+      "sleeping": "#B0B0BC",
+      "waiting": "#B8BFB8",
+      "loading": "#ADB5AD"
+    },
+    "emotions": {
+      "neutral": null,
+      "happy": "#D4D9A0",
+      "sad": "#A0A0C4",
+      "confused": "#D4B5A0",
+      "excited": "#D4C0A0",
+      "concerned": "#B8B8C8",
+      "surprised": "#E0E0A0",
+      "playful": "#D4A8C0",
+      "frustrated": "#C4A0A0",
+      "skeptical": "#B8B0A8",
+      "determined": "#A8C4A8",
+      "embarrassed": "#C8A8B8",
+      "proud": "#C8C4A0"
+    },
+    "emotionColorBlend": 0.3,
+    "specular": "#FFFFFF",
+    "head": {
+      "fill": "#BDC8B8",
+      "stroke": "#8A9488"
+    }
+  },
+  "animation": {
+    "breathAmount": 0.03,
+    "breathY": 0.018,
+    "headSway": 0.003,
+    "blinkInterval": [
+      5,
+      10
+    ],
+    "doubleBlink": 0.03,
+    "colorSpeed": {
+      "default": 0.012,
+      "alert": 0.08,
+      "sleeping": 0.01
+    },
+    "lerp": {
+      "amplitude": 0.2,
+      "lookAt": 0.02,
+      "mouth": 0.08,
+      "happiness": 0.03,
+      "confusion": 0.1,
+      "brows": 0.08,
+      "eyeScale": 0.03,
+      "tilt": 0.02,
+      "blush": 0.05,
+      "wink": 0.2,
+      "lid": 0.25
+    },
+    "microExpressions": {
+      "enabled": true,
+      "eyeDart": {
+        "interval": [
+          20,
+          45
+        ],
+        "rangeX": 0.12,
+        "rangeY": 0.06,
+        "duration": 0.8
+      },
+      "mouthTwitch": {
+        "interval": [
+          30,
+          60
+        ],
+        "range": 0.02
+      }
+    }
+  },
+  "personality": {
+    "energy": 0.1,
+    "expressiveness": 0.2,
+    "warmth": 0.75,
+    "stability": 0.98,
+    "playfulness": 0.05
+  }
+}

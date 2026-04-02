@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Open Face</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0f;
+      --panel: #10101acc;
+      --surface: #181824;
+      --text: #e0e0e8;
+      --muted: #8888a0;
+      --dim: #555570;
+      --accent: #4FC3F7;
+      --border: #222235;
+      --mono: 'SF Mono','Fira Code','Cascadia Code',monospace;
+      --sidebar-w: 280px;
+      --sidebar-collapsed: 32px;
+      --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* ── Full-screen face as background ── */
+    #face-bg {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 0;
+    }
+    #face-bg open-face { width: 100%; height: 100%; }
+
+    /* ── 4-Panel Overlay Grid ──
+       Sidebars go full height. Header/footer sit between sidebars. */
+    .overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 1;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      grid-template-columns: var(--sidebar-w) 1fr var(--sidebar-w);
+      grid-template-areas:
+        "left header right"
+        "left center right"
+        "left footer right";
+      pointer-events: none;
+      transition: grid-template-columns var(--transition);
+    }
+    .overlay > * { pointer-events: auto; }
+    .overlay .center { pointer-events: none; }
+
+    /* Collapse states via CSS custom properties on .overlay */
+    .overlay.left-collapsed {
+      grid-template-columns: var(--sidebar-collapsed) 1fr var(--sidebar-w);
+    }
+    .overlay.right-collapsed {
+      grid-template-columns: var(--sidebar-w) 1fr var(--sidebar-collapsed);
+    }
+    .overlay.left-collapsed.right-collapsed {
+      grid-template-columns: var(--sidebar-collapsed) 1fr var(--sidebar-collapsed);
+    }
+
+    /* ── Panel base ── */
+    .panel {
+      background: var(--panel);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+      transition: all var(--transition);
+    }
+
+    /* ── Panel header row ── */
+    .panel-head {
+      padding: 0.4rem 0.75rem;
+      font: 600 0.65rem var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--dim);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.4rem;
+      min-height: 32px;
+    }
+
+    /* ── Collapse toggle button ── */
+    .collapse-toggle {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--dim);
+      font-size: 0.65rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      line-height: 1;
+      padding: 0;
+    }
+    .collapse-toggle:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── Header ── */
+    .header {
+      grid-area: header;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stats {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      height: 34px;
+      padding: 0 0.75rem;
+      font: 0.75rem var(--mono);
+      color: var(--muted);
+    }
+    .stats .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #EF4444; flex-shrink: 0;
+    }
+    .stats .dot.ok { background: #10B981; }
+    .stats .badge {
+      padding: 0.1rem 0.4rem; border-radius: 3px;
+      font-size: 0.7rem; font-weight: 600; color: #fff;
+    }
+    .stats .spacer { flex: 1; }
+
+    /* Timeline */
+    .timeline { height: 4px; display: flex; flex-shrink: 0; }
+    .timeline .seg { min-width: 2px; position: relative; }
+    .timeline .seg:hover::after {
+      content: attr(data-label);
+      position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      background: #000; color: var(--text); font: 0.6rem var(--mono);
+      padding: 0.1rem 0.3rem; border-radius: 2px; white-space: nowrap;
+      z-index: 10;
+    }
+
+    /* ── Left Sidebar: Chat ── */
+    .left {
+      grid-area: left;
+      border-right: 1px solid var(--border);
+    }
+    .left .panel-content {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      transition: opacity var(--transition);
+    }
+    .left.collapsed .panel-content { opacity: 0; pointer-events: none; overflow: hidden; }
+    .left.collapsed .panel-head .panel-label { display: none; }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+    .chat-messages::-webkit-scrollbar { width: 3px; }
+    .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .chat-msg {
+      margin-bottom: 0.5rem;
+      font-size: 0.78rem;
+      line-height: 1.4;
+    }
+    .chat-msg .role {
+      font: 600 0.65rem var(--mono);
+      text-transform: uppercase;
+      margin-bottom: 0.15rem;
+    }
+    .chat-msg .role.user { color: var(--accent); }
+    .chat-msg .role.agent { color: #CE93D8; }
+    .chat-msg .role.system { color: var(--dim); }
+    .chat-msg .text { color: var(--text); word-break: break-word; }
+    .chat-input {
+      display: flex;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .chat-input input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      padding: 0.5rem 0.75rem;
+      font: 0.8rem system-ui, sans-serif;
+      outline: none;
+      min-width: 0;
+    }
+    .chat-input input::placeholder { color: var(--dim); }
+    .chat-input button {
+      background: transparent;
+      border: none;
+      border-left: 1px solid var(--border);
+      color: var(--accent);
+      padding: 0.5rem 0.75rem;
+      font: 0.75rem var(--mono);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .chat-input button:hover { background: rgba(79,195,247,0.1); }
+
+    /* ── Center: transparent (face shows through) ── */
+    .center {
+      grid-area: center;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 0.5rem;
+    }
+    .face-label { font: 0.7rem var(--mono); color: rgba(255,255,255,0.3); }
+
+    /* ── Right Sidebar: Activity Feed ── */
+    .right {
+      grid-area: right;
+      border-left: 1px solid var(--border);
+    }
+    .right .panel-content {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      transition: opacity var(--transition);
+    }
+    .right.collapsed .panel-content { opacity: 0; pointer-events: none; overflow: hidden; }
+    .right.collapsed .panel-head .panel-label { display: none; }
+
+    .feed {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.15rem 0;
+    }
+    .feed::-webkit-scrollbar { width: 3px; }
+    .feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .event {
+      padding: 0.35rem 0.75rem;
+      font-size: 0.75rem;
+      line-height: 1.4;
+      border-bottom: 1px solid #151520;
+      cursor: pointer;
+    }
+    .event:hover { background: rgba(255,255,255,0.03); }
+    .event .event-row { display: flex; gap: 0.4rem; }
+    .event .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      margin-top: 0.35rem; flex-shrink: 0;
+    }
+    .event .sum { color: var(--text); }
+    .event .time { font: 0.6rem var(--mono); color: var(--dim); margin-top: 0.1rem; }
+    .event .event-detail {
+      display: none;
+      margin-top: 0.4rem;
+      padding: 0.4rem;
+      background: #0a0a12;
+      border-radius: 3px;
+      font: 0.7rem var(--mono);
+      color: var(--muted);
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .event.expanded .event-detail { display: block; }
+
+    /* ── Footer ── */
+    .footer {
+      grid-area: footer;
+      border-top: 1px solid var(--border);
+    }
+    .footer-controls {
+      padding: 0.35rem 0.75rem;
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .footer-widget {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .footer-widget label {
+      font: 0.65rem var(--mono);
+      color: var(--dim);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .footer-controls select {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 0.2rem 0.4rem;
+      border-radius: 3px;
+      font: 0.7rem var(--mono);
+    }
+    .footer-controls select[multiple] {
+      min-width: 120px;
+      max-width: 180px;
+      height: 56px;
+      padding: 0.15rem;
+    }
+    .footer-controls input[type="range"] {
+      width: 80px;
+      accent-color: var(--accent);
+    }
+
+    /* ── Scrollbar global ── */
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 800px) {
+      .overlay {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+        grid-template-areas: "header" "center" "footer";
+      }
+      .overlay.left-collapsed,
+      .overlay.right-collapsed,
+      .overlay.left-collapsed.right-collapsed {
+        grid-template-columns: 1fr;
+      }
+      .left, .right { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Face fills entire background -->
+  <div id="face-bg">
+    <open-face id="face" state="idle" emotion="neutral"></open-face>
+  </div>
+
+  <!-- 4-panel overlay -->
+  <div class="overlay" id="overlay">
+
+    <!-- Left Sidebar: Chat -->
+    <div class="panel left" data-panel="chat" data-collapsible>
+      <div class="panel-head">
+        <span class="panel-label">Chat</span>
+        <button type="button" class="collapse-toggle" data-collapse="left" aria-label="Toggle chat panel"></button>
+      </div>
+      <div class="panel-content">
+        <div class="chat-messages" id="chat"></div>
+        <div class="chat-input">
+          <input id="chat-in" type="text" placeholder="Send a message..." autocomplete="off">
+          <button id="chat-send">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Header: stats + timeline -->
+    <div class="panel header" data-panel="header">
+      <div class="stats">
+        <span class="dot" id="dot"></span>
+        <span id="conn">disconnected</span>
+        <span id="msgs">0 msgs</span>
+        <span id="time">0:00</span>
+        <span class="badge" id="badge" style="background:#6B7280">idle</span>
+        <span class="spacer"></span>
+      </div>
+      <div class="timeline" id="tl"></div>
+    </div>
+
+    <!-- Center: transparent, face shows through -->
+    <div class="center">
+      <div class="face-label" id="label">idle / neutral</div>
+    </div>
+
+    <!-- Right Sidebar: Activity Feed -->
+    <div class="panel right" data-panel="activity" data-collapsible>
+      <div class="panel-head">
+        <span class="panel-label">Activity</span>
+        <button type="button" class="collapse-toggle" data-collapse="right" aria-label="Toggle activity panel"></button>
+      </div>
+      <div class="panel-content">
+        <div class="feed" id="feed"></div>
+      </div>
+    </div>
+
+    <!-- Footer: controls -->
+    <div class="panel footer" data-panel="footer">
+      <div class="footer-controls" id="ctrl"></div>
+    </div>
+
+  </div>
+
+  <script type="module" src="open-face.js"></script>
+  <script type="module">
+    // ── Constants ──
+    const SC = {
+      idle: "#4FC3F7", thinking: "#CE93D8", speaking: "#4FC3F7",
+      listening: "#81C784", reacting: "#FFB74D", puzzled: "#FF8A65",
+      alert: "#E57373", working: "#90CAF9", sleeping: "#7986CB",
+      waiting: "#B0BEC5", loading: "#78909C"
+    };
+    const STATES = Object.keys(SC);
+    const EMOTIONS = [
+      "neutral", "happy", "sad", "confused", "excited", "concerned",
+      "surprised", "playful", "frustrated", "skeptical", "determined",
+      "embarrassed", "proud"
+    ];
+    const DEFAULT_PACKS = ["default"];
+    const DEFAULT_PACK_FILES = { default: "default.face.json" };
+
+    // ── Panel registry ──
+    const panels = {
+      chat: { el: null, collapsed: false },
+      activity: { el: null, collapsed: false },
+      header: { el: null },
+      footer: { el: null }
+    };
+
+    // ── URL params + server resolution ──
+    const params = new URLSearchParams(location.search);
+    const wsP = location.protocol === "https:" ? "wss:" : "ws:";
+    const httpP = location.protocol === "https:" ? "https:" : "http:";
+    const srv = params.get("server") || (wsP + "//" + location.host + "/ws/viewer");
+    const pk = params.get("face") || "default";
+
+    // ── DOM refs ──
+    const overlay = document.getElementById("overlay");
+    const face = document.getElementById("face");
+    const dot = document.getElementById("dot");
+    const connEl = document.getElementById("conn");
+    const msgsEl = document.getElementById("msgs");
+    const timeEl = document.getElementById("time");
+    const badge = document.getElementById("badge");
+    const tl = document.getElementById("tl");
+    const feed = document.getElementById("feed");
+    const chatEl = document.getElementById("chat");
+    const chatIn = document.getElementById("chat-in");
+    const chatSend = document.getElementById("chat-send");
+    const label = document.getElementById("label");
+    const ctrl = document.getElementById("ctrl");
+
+    // ── State ──
+    let st = "idle", em = "neutral", mc = 0;
+    const t0 = Date.now();
+    let segs = [{ state: "idle", start: t0, end: null }];
+    let evts = [];
+    let curPack = pk;
+    let PACKS = DEFAULT_PACKS.slice();
+    let PACK_FILES = Object.assign({}, DEFAULT_PACK_FILES);
+    let curHeadMode = "pack";
+    let curHeadShape = "pack";
+    let curBodyMode = "pack";
+    let curBodyShape = "pack";
+    let curAccessoryMode = "pack";
+    let curAccessoryTarget = "";
+    let baseAccessoryIds = [];
+    const curAccessoryEnabled = new Set();
+    const faceDefCache = new Map();
+    let faceApplyReq = 0;
+    let accessoryModeSelectEl = null;
+    let accessoryTargetSelectEl = null;
+    let accessoryCustomSelectEl = null;
+    let accessoryTargetWidgetEl = null;
+    let accessoryCustomWidgetEl = null;
+
+    // ── Collapsible sidebars ──
+    function initCollapsible() {
+      const leftPanel = document.querySelector('[data-panel="chat"]');
+      const rightPanel = document.querySelector('[data-panel="activity"]');
+      panels.chat.el = leftPanel;
+      panels.activity.el = rightPanel;
+      panels.header.el = document.querySelector('[data-panel="header"]');
+      panels.footer.el = document.querySelector('[data-panel="footer"]');
+
+      // Restore from localStorage
+      const savedLeft = localStorage.getItem("of-collapse-left");
+      const savedRight = localStorage.getItem("of-collapse-right");
+      if (savedLeft === "true") toggleSidebar("left", true);
+      if (savedRight === "true") toggleSidebar("right", true);
+
+      // Update toggle button text
+      updateToggleIcons();
+    }
+
+    function toggleSidebar(side, forceCollapsed) {
+      const isLeft = side === "left";
+      const panel = isLeft ? panels.chat : panels.activity;
+      const panelEl = panel.el;
+      const collapsed = typeof forceCollapsed === "boolean" ? forceCollapsed : !panel.collapsed;
+      panel.collapsed = collapsed;
+
+      if (collapsed) {
+        panelEl.classList.add("collapsed");
+        overlay.classList.add(side + "-collapsed");
+      } else {
+        panelEl.classList.remove("collapsed");
+        overlay.classList.remove(side + "-collapsed");
+      }
+
+      localStorage.setItem("of-collapse-" + side, String(collapsed));
+      updateToggleIcons();
+    }
+
+    function updateToggleIcons() {
+      document.querySelectorAll(".collapse-toggle").forEach(function(btn) {
+        var side = btn.getAttribute("data-collapse");
+        var isLeft = side === "left";
+        var panel = isLeft ? panels.chat : panels.activity;
+        if (isLeft) {
+          btn.textContent = panel.collapsed ? "\u25B6" : "\u25C0";
+        } else {
+          btn.textContent = panel.collapsed ? "\u25C0" : "\u25B6";
+        }
+      });
+    }
+
+    // Bind collapse toggles
+    document.querySelectorAll(".collapse-toggle").forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        toggleSidebar(btn.getAttribute("data-collapse"));
+      });
+    });
+
+    // ── Shared helpers ──
+    function cloneFaceDef(def) {
+      return JSON.parse(JSON.stringify(def));
+    }
+
+    async function loadFaceDef(packId) {
+      if (faceDefCache.has(packId)) return cloneFaceDef(faceDefCache.get(packId));
+      var mappedFile = PACK_FILES[packId];
+      if (!mappedFile) throw new Error("Unknown face pack \"" + packId + "\"");
+      var res = await fetch("faces/" + mappedFile, { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to load face pack \"" + packId + "\"");
+      var def = await res.json();
+      faceDefCache.set(packId, def);
+      return cloneFaceDef(def);
+    }
+
+    function extractAccessoryIds(def) {
+      var ids = [];
+      var seen = new Set();
+      var accessories = Array.isArray(def && def.accessories) ? def.accessories : [];
+      for (var i = 0; i < accessories.length; i++) {
+        var raw = accessories[i];
+        if (!raw || typeof raw !== "object") continue;
+        var id = typeof raw.id === "string" ? raw.id.trim() : "";
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        ids.push(id);
+      }
+      return ids;
+    }
+
+    function buildGlobalAccessories(def) {
+      var palette = (def && typeof def.palette === "object") ? def.palette : {};
+      var featureColor = typeof palette.feature === "string" ? palette.feature : "#111111";
+      var specularColor = typeof palette.specular === "string" ? palette.specular : "#FFFFFF";
+      var antenna = {
+        id: "global-antenna",
+        type: "antenna",
+        layer: "front",
+        anchor: { x: 0.18, y: -0.24 },
+        segments: 6,
+        segmentLength: 0.065,
+        restAngle: 42,
+        restCurve: 0.36,
+        tipCurl: 0.3,
+        thickness: { base: 0.013, tip: 0.005 },
+        tipShape: "circle",
+        tipSize: 0.012,
+        color: featureColor,
+        tipColor: specularColor,
+        symmetry: "mirrorX",
+        physics: { enabled: true, stiffness: 0.72, damping: 0.88, gravity: 0.07, headInfluence: 1.0 }
+      };
+      var glasses = {
+        id: "global-glasses",
+        type: "glasses",
+        layer: "overlay",
+        anchor: { x: 0, y: -0.02 },
+        shape: "round",
+        frameWidth: 0.12,
+        frameHeight: 0.082,
+        bridgeWidth: 0.05,
+        lineWidth: 0.008,
+        followEyes: 0.9,
+        lensAlpha: 0.08,
+        color: featureColor
+      };
+      return { antenna: antenna, glasses: glasses };
+    }
+
+    function reconcileAccessoryState() {
+      var idSet = new Set(baseAccessoryIds);
+      if (!idSet.has(curAccessoryTarget)) curAccessoryTarget = baseAccessoryIds[0] || "";
+      Array.from(curAccessoryEnabled).forEach(function(id) {
+        if (!idSet.has(id)) curAccessoryEnabled.delete(id);
+      });
+      if (curAccessoryEnabled.size === 0) {
+        baseAccessoryIds.forEach(function(id) { curAccessoryEnabled.add(id); });
+      }
+    }
+
+    function renderAccessoryControls() {
+      if (!accessoryModeSelectEl || !accessoryTargetSelectEl || !accessoryCustomSelectEl) return;
+
+      accessoryModeSelectEl.value = curAccessoryMode;
+
+      while (accessoryTargetSelectEl.firstChild) accessoryTargetSelectEl.removeChild(accessoryTargetSelectEl.firstChild);
+      if (baseAccessoryIds.length === 0) {
+        var emptyOpt = document.createElement("option");
+        emptyOpt.value = "";
+        emptyOpt.textContent = "n/a";
+        accessoryTargetSelectEl.appendChild(emptyOpt);
+        curAccessoryTarget = "";
+      } else {
+        baseAccessoryIds.forEach(function(id) {
+          var opt = document.createElement("option");
+          opt.value = id;
+          opt.textContent = id;
+          accessoryTargetSelectEl.appendChild(opt);
+        });
+      }
+      accessoryTargetSelectEl.value = curAccessoryTarget;
+
+      while (accessoryCustomSelectEl.firstChild) accessoryCustomSelectEl.removeChild(accessoryCustomSelectEl.firstChild);
+      baseAccessoryIds.forEach(function(id) {
+        var opt = document.createElement("option");
+        opt.value = id;
+        opt.textContent = id;
+        if (curAccessoryEnabled.has(id)) opt.selected = true;
+        accessoryCustomSelectEl.appendChild(opt);
+      });
+
+      var hasAccessories = baseAccessoryIds.length > 0;
+      accessoryModeSelectEl.disabled = false;
+      accessoryTargetSelectEl.disabled = !hasAccessories || curAccessoryMode !== "isolate";
+      accessoryCustomSelectEl.disabled = !hasAccessories || curAccessoryMode !== "custom";
+      if (accessoryTargetWidgetEl) accessoryTargetWidgetEl.style.display = curAccessoryMode === "isolate" ? "flex" : "none";
+      if (accessoryCustomWidgetEl) accessoryCustomWidgetEl.style.display = curAccessoryMode === "custom" ? "flex" : "none";
+    }
+
+    function applySelectionOverrides(baseDef) {
+      var def = cloneFaceDef(baseDef);
+      if (!def.geometry || typeof def.geometry !== "object") def.geometry = {};
+
+      if (curHeadMode !== "pack" || curHeadShape !== "pack") {
+        var head = (def.geometry.head && typeof def.geometry.head === "object") ? def.geometry.head : {};
+        if (curHeadMode === "off") {
+          head.shape = "fullscreen";
+        } else if (curHeadMode === "on" && curHeadShape === "pack" && (!head.shape || head.shape === "fullscreen")) {
+          head.shape = "circle";
+        }
+        if (curHeadShape !== "pack") head.shape = curHeadShape;
+        if (head.shape && head.shape !== "fullscreen") {
+          if (typeof head.width !== "number") head.width = 0.86;
+          if (typeof head.height !== "number") head.height = 0.86;
+          if (typeof head.verticalPosition !== "number") head.verticalPosition = 0;
+          if (typeof head.strokeWidth !== "number") head.strokeWidth = 0.004;
+        }
+        def.geometry.head = head;
+      }
+
+      if (curBodyMode !== "pack" || curBodyShape !== "pack") {
+        var body = (def.geometry.body && typeof def.geometry.body === "object") ? def.geometry.body : {};
+        if (curBodyMode !== "pack") body.enabled = curBodyMode === "on";
+        if (curBodyShape !== "pack") {
+          body.shape = curBodyShape;
+          if (curBodyMode === "pack" && typeof body.enabled !== "boolean") body.enabled = true;
+        }
+        def.geometry.body = body;
+      }
+
+      var packAccessories = Array.isArray(def.accessories) ? def.accessories : [];
+      if (curAccessoryMode === "none") {
+        def.accessories = [];
+      } else if (curAccessoryMode === "antenna") {
+        var globalAntenna = buildGlobalAccessories(def);
+        def.accessories = [globalAntenna.antenna];
+      } else if (curAccessoryMode === "glasses") {
+        var globalGlasses = buildGlobalAccessories(def);
+        def.accessories = [globalGlasses.glasses];
+      } else if (curAccessoryMode === "both") {
+        var globalBoth = buildGlobalAccessories(def);
+        def.accessories = [globalBoth.antenna, globalBoth.glasses];
+      } else if (curAccessoryMode === "isolate") {
+        var isolateId = curAccessoryTarget;
+        var single = packAccessories.find(function(item) {
+          return item && typeof item === "object" && item.id === isolateId;
+        });
+        def.accessories = single ? [single] : [];
+      } else if (curAccessoryMode === "custom") {
+        def.accessories = packAccessories.filter(function(item) {
+          return item && typeof item === "object" && curAccessoryEnabled.has(item.id);
+        });
+      }
+
+      return def;
+    }
+
+    async function applyFaceSelection() {
+      var reqId = ++faceApplyReq;
+      try {
+        var baseDef = await loadFaceDef(curPack);
+        if (reqId !== faceApplyReq) return;
+        baseAccessoryIds = extractAccessoryIds(baseDef);
+        reconcileAccessoryState();
+        renderAccessoryControls();
+
+        var withOverrides = applySelectionOverrides(baseDef);
+        face.loadFaceDefinition(withOverrides);
+        face.setAttribute("loaded-face", curPack);
+      } catch (err) {
+        console.warn("[dashboard] face override load failed; falling back to attribute load", err);
+        face.setAttribute("face", curPack);
+      }
+    }
+
+    function upd() {
+      msgsEl.textContent = mc + " msgs";
+      badge.textContent = st;
+      badge.style.background = SC[st] || "#6B7280";
+      label.textContent = st + " / " + em;
+    }
+
+    setInterval(function() {
+      var s = Math.floor((Date.now() - t0) / 1000);
+      timeEl.textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+    }, 1000);
+
+    // ── Timeline ──
+    function addSeg(s) {
+      var n = Date.now();
+      if (segs.length) segs[segs.length - 1].end = n;
+      segs.push({ state: s, start: n, end: null });
+      if (segs.length > 100) segs = segs.slice(-100);
+      rTl();
+    }
+
+    function rTl() {
+      var n = Date.now();
+      while (tl.firstChild) tl.removeChild(tl.firstChild);
+      var tot = n - segs[0].start || 1;
+      for (var i = 0; i < segs.length; i++) {
+        var s = segs[i];
+        var d = document.createElement("div");
+        d.className = "seg";
+        d.style.flexGrow = String(((s.end || n) - s.start) / tot);
+        d.style.background = SC[s.state] || "#6B7280";
+        d.setAttribute("data-label", s.state + " " + (((s.end || n) - s.start) / 1000).toFixed(1) + "s");
+        tl.appendChild(d);
+      }
+    }
+    setInterval(rTl, 2000);
+
+    // ── Activity Feed ──
+    function addEv(type, sum, det) {
+      mc++;
+      evts.push({ type: type, sum: sum, det: det, t: Date.now() });
+      if (evts.length > 500) {
+        evts.shift();
+        if (feed.firstChild) feed.removeChild(feed.firstChild);
+      }
+
+      var row = document.createElement("div");
+      row.className = "event";
+
+      var eventRow = document.createElement("div");
+      eventRow.className = "event-row";
+
+      var icon = document.createElement("div");
+      icon.className = "dot";
+      if (type === "state") {
+        icon.style.background = SC[sum.split(" ")[0]] || "#888";
+      } else if (type === "ok") {
+        icon.style.background = "#10B981";
+      } else if (type === "err") {
+        icon.style.background = "#EF4444";
+      } else if (type === "tool") {
+        icon.style.background = "#90CAF9";
+      } else if (type === "msg") {
+        icon.style.background = "#FFB74D";
+      } else {
+        icon.style.background = "#888";
+      }
+      eventRow.appendChild(icon);
+
+      var body = document.createElement("div");
+      var s = document.createElement("div");
+      s.className = "sum";
+      s.textContent = sum;
+      body.appendChild(s);
+      var m = document.createElement("div");
+      m.className = "time";
+      m.textContent = new Date().toLocaleTimeString();
+      body.appendChild(m);
+      eventRow.appendChild(body);
+      row.appendChild(eventRow);
+
+      if (det) {
+        var detDiv = document.createElement("div");
+        detDiv.className = "event-detail";
+        detDiv.textContent = det;
+        row.appendChild(detDiv);
+      }
+
+      row.addEventListener("click", function() { row.classList.toggle("expanded"); });
+      feed.appendChild(row);
+      feed.scrollTop = feed.scrollHeight;
+      upd();
+    }
+
+    // ── Chat ──
+    function addChat(role, text) {
+      var msg = document.createElement("div");
+      msg.className = "chat-msg";
+      var r = document.createElement("div");
+      r.className = "role " + role;
+      r.textContent = role;
+      msg.appendChild(r);
+      var t = document.createElement("div");
+      t.className = "text";
+      t.textContent = text;
+      msg.appendChild(t);
+      chatEl.appendChild(msg);
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    // ── Footer controls ──
+    function bldCtrl() {
+      while (ctrl.firstChild) ctrl.removeChild(ctrl.firstChild);
+
+      var packWidget = document.createElement("div");
+      packWidget.className = "footer-widget";
+      var packLabel = document.createElement("label");
+      packLabel.textContent = "Face";
+      var packSelect = document.createElement("select");
+      PACKS.forEach(function(p) {
+        var opt = document.createElement("option");
+        opt.value = p;
+        opt.textContent = p;
+        if (p === curPack) opt.selected = true;
+        packSelect.appendChild(opt);
+      });
+      packSelect.addEventListener("change", function() {
+        curPack = packSelect.value;
+        applyFaceSelection();
+      });
+      packWidget.appendChild(packLabel);
+      packWidget.appendChild(packSelect);
+      ctrl.appendChild(packWidget);
+
+      var headModeWidget = document.createElement("div");
+      headModeWidget.className = "footer-widget";
+      var headModeLabel = document.createElement("label");
+      headModeLabel.textContent = "Head";
+      var headModeSelect = document.createElement("select");
+      [
+        { value: "pack", label: "Pack default" },
+        { value: "off", label: "Disabled" },
+        { value: "on", label: "Enabled" }
+      ].forEach(function(mode) {
+        var opt = document.createElement("option");
+        opt.value = mode.value;
+        opt.textContent = mode.label;
+        if (mode.value === curHeadMode) opt.selected = true;
+        headModeSelect.appendChild(opt);
+      });
+      headModeSelect.addEventListener("change", function() {
+        curHeadMode = headModeSelect.value;
+        applyFaceSelection();
+      });
+      headModeWidget.appendChild(headModeLabel);
+      headModeWidget.appendChild(headModeSelect);
+      ctrl.appendChild(headModeWidget);
+
+      var headShapeWidget = document.createElement("div");
+      headShapeWidget.className = "footer-widget";
+      var headShapeLabel = document.createElement("label");
+      headShapeLabel.textContent = "Head Shape";
+      var headShapeSelect = document.createElement("select");
+      [
+        { value: "pack", label: "Pack default" },
+        { value: "fullscreen", label: "Fullscreen (none)" },
+        { value: "circle", label: "Circle" },
+        { value: "rounded", label: "Rounded" }
+      ].forEach(function(shape) {
+        var opt = document.createElement("option");
+        opt.value = shape.value;
+        opt.textContent = shape.label;
+        if (shape.value === curHeadShape) opt.selected = true;
+        headShapeSelect.appendChild(opt);
+      });
+      headShapeSelect.addEventListener("change", function() {
+        curHeadShape = headShapeSelect.value;
+        applyFaceSelection();
+      });
+      headShapeWidget.appendChild(headShapeLabel);
+      headShapeWidget.appendChild(headShapeSelect);
+      ctrl.appendChild(headShapeWidget);
+
+      var bodyModeWidget = document.createElement("div");
+      bodyModeWidget.className = "footer-widget";
+      var bodyModeLabel = document.createElement("label");
+      bodyModeLabel.textContent = "Body";
+      var bodyModeSelect = document.createElement("select");
+      [
+        { value: "pack", label: "Pack default" },
+        { value: "off", label: "Disabled" },
+        { value: "on", label: "Enabled" }
+      ].forEach(function(mode) {
+        var opt = document.createElement("option");
+        opt.value = mode.value;
+        opt.textContent = mode.label;
+        if (mode.value === curBodyMode) opt.selected = true;
+        bodyModeSelect.appendChild(opt);
+      });
+      bodyModeSelect.addEventListener("change", function() {
+        curBodyMode = bodyModeSelect.value;
+        applyFaceSelection();
+      });
+      bodyModeWidget.appendChild(bodyModeLabel);
+      bodyModeWidget.appendChild(bodyModeSelect);
+      ctrl.appendChild(bodyModeWidget);
+
+      var bodyShapeWidget = document.createElement("div");
+      bodyShapeWidget.className = "footer-widget";
+      var bodyShapeLabel = document.createElement("label");
+      bodyShapeLabel.textContent = "Body Shape";
+      var bodyShapeSelect = document.createElement("select");
+      [
+        { value: "pack", label: "Pack default" },
+        { value: "capsule", label: "Capsule" },
+        { value: "blob", label: "Blob" },
+        { value: "trapezoid", label: "Trapezoid" },
+        { value: "roundedRect", label: "Rounded Rect" }
+      ].forEach(function(shape) {
+        var opt = document.createElement("option");
+        opt.value = shape.value;
+        opt.textContent = shape.label;
+        if (shape.value === curBodyShape) opt.selected = true;
+        bodyShapeSelect.appendChild(opt);
+      });
+      bodyShapeSelect.addEventListener("change", function() {
+        curBodyShape = bodyShapeSelect.value;
+        applyFaceSelection();
+      });
+      bodyShapeWidget.appendChild(bodyShapeLabel);
+      bodyShapeWidget.appendChild(bodyShapeSelect);
+      ctrl.appendChild(bodyShapeWidget);
+
+      var accessoryModeWidget = document.createElement("div");
+      accessoryModeWidget.className = "footer-widget";
+      var accessoryModeLabel = document.createElement("label");
+      accessoryModeLabel.textContent = "Accessories";
+      accessoryModeSelectEl = document.createElement("select");
+      [
+        { value: "pack", label: "Pack default" },
+        { value: "none", label: "None" },
+        { value: "antenna", label: "Antenna (global)" },
+        { value: "glasses", label: "Glasses (global)" },
+        { value: "both", label: "Antenna + Glasses" },
+        { value: "isolate", label: "Isolate one" },
+        { value: "custom", label: "Custom set" }
+      ].forEach(function(mode) {
+        var opt = document.createElement("option");
+        opt.value = mode.value;
+        opt.textContent = mode.label;
+        if (mode.value === curAccessoryMode) opt.selected = true;
+        accessoryModeSelectEl.appendChild(opt);
+      });
+      accessoryModeSelectEl.addEventListener("change", function() {
+        curAccessoryMode = accessoryModeSelectEl.value;
+        renderAccessoryControls();
+        applyFaceSelection();
+      });
+      accessoryModeWidget.appendChild(accessoryModeLabel);
+      accessoryModeWidget.appendChild(accessoryModeSelectEl);
+      ctrl.appendChild(accessoryModeWidget);
+
+      var accessoryTargetWidget = document.createElement("div");
+      accessoryTargetWidget.className = "footer-widget";
+      accessoryTargetWidgetEl = accessoryTargetWidget;
+      var accessoryTargetLabel = document.createElement("label");
+      accessoryTargetLabel.textContent = "Acc Target";
+      accessoryTargetSelectEl = document.createElement("select");
+      accessoryTargetSelectEl.addEventListener("change", function() {
+        curAccessoryTarget = accessoryTargetSelectEl.value;
+        applyFaceSelection();
+      });
+      accessoryTargetWidget.appendChild(accessoryTargetLabel);
+      accessoryTargetWidget.appendChild(accessoryTargetSelectEl);
+      ctrl.appendChild(accessoryTargetWidget);
+
+      var accessoryCustomWidget = document.createElement("div");
+      accessoryCustomWidget.className = "footer-widget";
+      accessoryCustomWidgetEl = accessoryCustomWidget;
+      var accessoryCustomLabel = document.createElement("label");
+      accessoryCustomLabel.textContent = "Acc Custom";
+      accessoryCustomSelectEl = document.createElement("select");
+      accessoryCustomSelectEl.multiple = true;
+      accessoryCustomSelectEl.size = 3;
+      accessoryCustomSelectEl.addEventListener("change", function() {
+        curAccessoryEnabled.clear();
+        Array.from(accessoryCustomSelectEl.selectedOptions).forEach(function(opt) {
+          curAccessoryEnabled.add(opt.value);
+        });
+        if (curAccessoryEnabled.size === 0) {
+          baseAccessoryIds.forEach(function(id) { curAccessoryEnabled.add(id); });
+        }
+        applyFaceSelection();
+      });
+      accessoryCustomWidget.appendChild(accessoryCustomLabel);
+      accessoryCustomWidget.appendChild(accessoryCustomSelectEl);
+      ctrl.appendChild(accessoryCustomWidget);
+
+      var styleWidget = document.createElement("div");
+      styleWidget.className = "footer-widget";
+      var styleLabel = document.createElement("label");
+      styleLabel.textContent = "Style";
+      var styleSelect = document.createElement("select");
+      ["classic", "gradient", "minimal"].forEach(function(v) {
+        var opt = document.createElement("option");
+        opt.value = v;
+        opt.textContent = v;
+        styleSelect.appendChild(opt);
+      });
+      styleSelect.addEventListener("change", function() {
+        face.setAttribute("style-variant", styleSelect.value);
+      });
+      styleWidget.appendChild(styleLabel);
+      styleWidget.appendChild(styleSelect);
+      ctrl.appendChild(styleWidget);
+
+      var volWidget = document.createElement("div");
+      volWidget.className = "footer-widget";
+      var volLabel = document.createElement("label");
+      volLabel.textContent = "Vol";
+      var volSlider = document.createElement("input");
+      volSlider.type = "range";
+      volSlider.min = "0";
+      volSlider.max = "100";
+      volSlider.value = "80";
+      volSlider.addEventListener("input", function() {
+        face.setAttribute("volume", String(parseInt(volSlider.value, 10) / 100));
+      });
+      volWidget.appendChild(volLabel);
+      volWidget.appendChild(volSlider);
+      ctrl.appendChild(volWidget);
+
+      renderAccessoryControls();
+    }
+
+    // ── Load pack IDs ──
+    async function loadPackIds() {
+      try {
+        var res = await fetch("faces/index.json");
+        if (!res.ok) return DEFAULT_PACKS.slice();
+        var manifest = await res.json();
+        var official = Array.isArray(manifest && manifest.official) ? manifest.official : [];
+        var community = Array.isArray(manifest && manifest.community) ? manifest.community : [];
+        var ids = [];
+        var files = Object.assign({}, DEFAULT_PACK_FILES);
+        official.concat(community).forEach(function(entry) {
+          if (!entry || typeof entry !== "object") return;
+          if (typeof entry.id !== "string" || entry.id.length === 0) return;
+          ids.push(entry.id);
+          if (typeof entry.file === "string" && entry.file.length > 0) {
+            files[entry.id] = entry.file;
+          }
+        });
+        PACK_FILES = files;
+        return ids.length ? ids : DEFAULT_PACKS.slice();
+      } catch (e) {
+        PACK_FILES = Object.assign({}, DEFAULT_PACK_FILES);
+        return DEFAULT_PACKS.slice();
+      }
+    }
+
+    // ── Init ──
+    PACKS = await loadPackIds();
+    if (!PACKS.includes(curPack) && PACKS.length) curPack = PACKS[0];
+    bldCtrl();
+    await applyFaceSelection();
+    initCollapsible();
+
+    // Chat input: Enter to send
+    chatIn.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") chatSend.click();
+    });
+
+    // ── Connect to server ──
+    face.setAttribute("server", srv);
+    dot.className = "dot";
+    connEl.textContent = "connecting";
+    addEv("ok", "Connecting to " + srv);
+
+    face.addEventListener("face-connected", function() {
+      dot.className = "dot ok";
+      connEl.textContent = "connected";
+      addEv("ok", "Connected");
+    });
+
+    face.addEventListener("face-disconnected", function() {
+      dot.className = "dot";
+      connEl.textContent = "disconnected";
+      addEv("err", "Disconnected");
+    });
+
+    face.addEventListener("face-state-change", function(e) {
+      st = e.detail.state;
+      addSeg(st);
+      addEv("state", st + (e.detail.previousState ? " \u2190 " + e.detail.previousState : ""), JSON.stringify(e.detail, null, 2));
+      upd();
+    });
+
+    var lastAgentText = "";
+    var lastUserText = "";
+    face.addEventListener("face-state-data", function(event) {
+      var data = event.detail || {};
+      if (data.text && data.text !== lastAgentText) {
+        lastAgentText = data.text;
+        addChat("agent", data.text);
+      }
+      if (data.state === "listening" && data.detail) {
+        var userText = String(data.detail).replace(/^User:\s*/i, "");
+        if (userText && userText !== "Listening..." && userText !== lastUserText) {
+          lastUserText = userText;
+          addChat("user", userText);
+        }
+      }
+    });
+
+    new MutationObserver(function() {
+      st = face.getAttribute("state") || st;
+      em = face.getAttribute("emotion") || em;
+      upd();
+    }).observe(face, { attributes: true, attributeFilter: ["state", "emotion"] });
+
+    // Chat sends to face server API
+    var srvUrl = new URL(srv);
+    var apiBase = (srvUrl.protocol === "wss:" ? "https:" : "http:") + "//" + srvUrl.host;
+    var chatToken = params.get("token");
+
+    chatSend.addEventListener("click", function() {
+      var text = chatIn.value.trim();
+      if (!text) return;
+      addChat("user", text);
+      chatIn.value = "";
+      var chatUrl = new URL("/api/chat", apiBase);
+      if (chatToken) chatUrl.searchParams.set("token", chatToken);
+      fetch(chatUrl.toString(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text })
+      }).then(function(res) {
+        if (!res.ok) addEv("err", "Chat failed: " + res.status);
+      }).catch(function() {
+        addEv("err", "Gateway unreachable");
+      });
+    });
+
+    upd();
+  </script>
+</body>
+</html>

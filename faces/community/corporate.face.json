@@ -1,0 +1,416 @@
+{
+  "$type": "face",
+  "$version": "1.0.0",
+  "meta": {
+    "name": "Corporate",
+    "author": "Agent Face",
+    "description": "Professional and composed — navy slate palette, minimal features, smooth motion"
+  },
+  "geometry": {
+    "shape": "fullscreen",
+    "head": {
+      "shape": "rounded",
+      "width": 0.78,
+      "height": 0.68,
+      "verticalPosition": -0.02,
+      "radius": 0.06,
+      "strokeWidth": 0.0045
+    },
+    "eyes": {
+      "style": "oval",
+      "baseWidth": 0.055,
+      "baseHeight": 0.072,
+      "spacing": 0.16,
+      "verticalPosition": -0.05,
+      "stateScales": {
+        "idle": [
+          1,
+          1
+        ],
+        "thinking": [
+          0.92,
+          0.92
+        ],
+        "working": [
+          0.95,
+          0.95
+        ],
+        "speaking": [
+          1,
+          1
+        ],
+        "listening": [
+          1.08,
+          1.08
+        ],
+        "reacting": [
+          1.15,
+          1.15
+        ],
+        "puzzled": [
+          0.88,
+          1.1
+        ],
+        "alert": [
+          1.2,
+          1.2
+        ],
+        "sleeping": [
+          1,
+          1
+        ],
+        "waiting": [
+          1,
+          1
+        ],
+        "loading": [
+          0.88,
+          0.88
+        ]
+      },
+      "pupil": {
+        "enabled": true,
+        "size": 0.12,
+        "shiftX": 0.5,
+        "shiftY": 0.45,
+        "lookFollow": 0.82
+      },
+      "eyelid": {
+        "renderer": "cover",
+        "strength": 0.3
+      },
+      "constraints": {
+        "scaleMin": 0.8,
+        "scaleMax": 1.2
+      },
+      "specular": {
+        "enabled": true,
+        "size": 0.2,
+        "shiftX": 0.4,
+        "shiftY": 0.35,
+        "lookFollow": 0.16,
+        "alpha": 1
+      }
+    },
+    "mouth": {
+      "width": 0.12,
+      "verticalPosition": 0.13,
+      "style": "curve",
+      "speakingBase": 0.08,
+      "constraints": {
+        "openMin": 0,
+        "openMax": 0.5,
+        "widthMin": -0.15,
+        "widthMax": 0.2
+      }
+    },
+    "brows": {
+      "enabled": false,
+      "renderer": "none",
+      "constraints": {
+        "min": 0,
+        "max": 0
+      }
+    },
+    "blush": {
+      "enabled": false
+    },
+    "locks": {
+      "brows": true
+    }
+  },
+  "palette": {
+    "feature": "#1A2744",
+    "states": {
+      "idle": "#283B5B",
+      "thinking": "#344868",
+      "speaking": "#2C4060",
+      "listening": "#2E4A48",
+      "reacting": "#4A4030",
+      "puzzled": "#3D3D50",
+      "alert": "#4A2B2B",
+      "working": "#2A3E60",
+      "sleeping": "#1E2A40",
+      "waiting": "#3A3F50",
+      "loading": "#2F3545"
+    },
+    "emotions": {
+      "neutral": null,
+      "happy": "#7A8E6A",
+      "sad": "#4A5570",
+      "confused": "#7A7060",
+      "excited": "#6A7A55",
+      "concerned": "#6A6A78",
+      "surprised": "#8A8A6A",
+      "playful": "#6A7088",
+      "frustrated": "#6A4040",
+      "skeptical": "#5A5A60",
+      "determined": "#4A6A55",
+      "embarrassed": "#6A5060",
+      "proud": "#6A6A40"
+    },
+    "emotionColorBlend": 0.3,
+    "specular": "#C8D4E0",
+    "head": {
+      "fill": "#304768",
+      "stroke": "#1A2744"
+    }
+  },
+  "animation": {
+    "breathAmount": 0.01,
+    "breathY": 0.006,
+    "headSway": 0.004,
+    "blinkInterval": [
+      3.5,
+      6
+    ],
+    "doubleBlink": 0.08,
+    "colorSpeed": {
+      "default": 0.025,
+      "alert": 0.08,
+      "sleeping": 0.015
+    },
+    "lerp": {
+      "amplitude": 0.25,
+      "lookAt": 0.04,
+      "mouth": 0.2,
+      "happiness": 0.08,
+      "confusion": 0.15,
+      "brows": 0.12,
+      "eyeScale": 0.08,
+      "tilt": 0.05,
+      "blush": 0.05,
+      "wink": 0.25,
+      "lid": 0.3
+    },
+    "microExpressions": {
+      "enabled": true,
+      "eyeDart": {
+        "interval": [
+          12,
+          25
+        ],
+        "rangeX": 0.25,
+        "rangeY": 0.12,
+        "duration": 0.35
+      },
+      "mouthTwitch": {
+        "interval": [
+          15,
+          25
+        ],
+        "range": 0.05
+      }
+    }
+  },
+  "personality": {
+    "energy": 0.25,
+    "expressiveness": 0.3,
+    "warmth": 0.4,
+    "stability": 0.95,
+    "playfulness": 0.15
+  },
+  "accessories": [
+    {
+      "id": "corporate-glasses",
+      "type": "glasses",
+      "layer": "overlay",
+      "anchor": {
+        "x": 0,
+        "y": -0.01
+      },
+      "shape": "rect",
+      "frameWidth": 0.055,
+      "frameHeight": 0.042,
+      "bridgeWidth": 0.018,
+      "lineWidth": 0.008,
+      "followEyes": 0.45,
+      "lensAlpha": 0.07,
+      "color": "#1A2744",
+      "stateOverrides": {
+        "listening": {
+          "lensAlpha": 0.1
+        },
+        "alert": {
+          "color": "#3A2020",
+          "lensAlpha": 0.05
+        }
+      }
+    }
+  ],
+  "states": {
+    "idle": {
+      "mouth": 0.06,
+      "happiness": 0,
+      "brows": [
+        0,
+        0
+      ],
+      "lid": 1
+    },
+    "thinking": {
+      "mouth": 0.02,
+      "happiness": 0,
+      "lid": 0.75,
+      "brows": [
+        0,
+        0
+      ],
+      "tilt": 0.01
+    },
+    "working": {
+      "mouth": 0.02,
+      "happiness": 0.05,
+      "lid": 0.82,
+      "brows": [
+        0,
+        0
+      ],
+      "tilt": 0
+    },
+    "speaking": {
+      "happiness": 0.08,
+      "brows": [
+        0,
+        0
+      ]
+    },
+    "listening": {
+      "mouth": 0.03,
+      "happiness": 0.05,
+      "lid": 1.05,
+      "brows": [
+        0,
+        0
+      ],
+      "tilt": 0.01
+    },
+    "reacting": {
+      "mouth": 0.4,
+      "happiness": 0.15,
+      "lid": 0.85,
+      "brows": [
+        0,
+        0
+      ]
+    },
+    "puzzled": {
+      "mouth": 0.04,
+      "happiness": 0,
+      "confusion": 0.7,
+      "lid": 0.88,
+      "brows": [
+        0,
+        0
+      ],
+      "tilt": -0.02
+    },
+    "alert": {
+      "mouth": 0.35,
+      "happiness": -0.15,
+      "lid": 1.15,
+      "brows": [
+        0,
+        0
+      ],
+      "shake": 8,
+      "bounce": 1.03
+    },
+    "sleeping": {
+      "mouth": 0.02,
+      "happiness": 0,
+      "lid": 0,
+      "brows": [
+        0,
+        0
+      ],
+      "tilt": 0.01
+    },
+    "waiting": {
+      "mouth": 0.03,
+      "happiness": 0,
+      "lid": 1.02,
+      "brows": [
+        0,
+        0
+      ],
+      "tilt": 0
+    },
+    "loading": {
+      "mouth": 0.02,
+      "happiness": 0,
+      "lid": 0.55,
+      "brows": [
+        0,
+        0
+      ],
+      "tilt": 0
+    }
+  },
+  "emotionDeltas": {
+    "happy": {
+      "happiness": 0.15,
+      "eyeScale": [
+        0.03,
+        0.03
+      ]
+    },
+    "sad": {
+      "happiness": -0.3,
+      "mouthCap": 0.4,
+      "eyeScale": [
+        -0.03,
+        -0.03
+      ]
+    },
+    "confused": {
+      "confusion": 0.3
+    },
+    "excited": {
+      "happiness": 0.2,
+      "eyeScale": [
+        0.05,
+        0.05
+      ]
+    },
+    "concerned": {
+      "happiness": -0.1,
+      "lidMult": 0.92
+    },
+    "surprised": {
+      "mouthMin": 0.25,
+      "happiness": 0,
+      "lidMin": 1.1,
+      "eyeScale": [
+        0.15,
+        0.15
+      ]
+    },
+    "playful": {
+      "happiness": 0.15,
+      "tilt": 0.02
+    },
+    "frustrated": {
+      "happiness": -0.15,
+      "mouthWidth": -0.1,
+      "lidMult": 0.9
+    },
+    "skeptical": {
+      "happiness": -0.05,
+      "tilt": -0.01
+    },
+    "determined": {
+      "lidMult": 0.92,
+      "mouthWidth": -0.05
+    },
+    "embarrassed": {
+      "happiness": 0.08,
+      "tilt": 0.02
+    },
+    "proud": {
+      "happiness": 0.18,
+      "lidMult": 0.92,
+      "tilt": -0.01
+    }
+  }
+}

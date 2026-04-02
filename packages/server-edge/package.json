@@ -1,0 +1,21 @@
+{
+  "name": "@openface/server-edge",
+  "version": "0.1.0",
+  "description": "Open Face edge server — Cloudflare Workers + Durable Objects",
+  "type": "module",
+  "main": "src/worker.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@openface/server": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250320.0",
+    "wrangler": "^4.0.0"
+  },
+  "files": ["src/", "wrangler.toml", "README.md"],
+  "license": "MIT"
+}

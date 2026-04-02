@@ -1,0 +1,119 @@
+{
+  "version": "2.0",
+  "official": [
+    {
+      "id": "default",
+      "name": "Default",
+      "description": "The original Agent Face — Nick Jr inspired, geometric, bold",
+      "author": "Agent Face",
+      "file": "default.face.json"
+    }
+  ],
+  "community": [
+    {
+      "id": "classic",
+      "name": "Classic",
+      "description": "The original — clean stroked lines, bold curves, the MVP look",
+      "author": "Agent Face",
+      "file": "community/classic.face.json"
+    },
+    {
+      "id": "colorblind",
+      "name": "Colorblind",
+      "description": "High-contrast colorblind-safe pack — all states distinguishable via luminance and shape, not color alone. Designed for deuteranopia and protanopia.",
+      "author": "Agent Face",
+      "file": "community/colorblind.face.json"
+    },
+    {
+      "id": "corporate",
+      "name": "Corporate",
+      "description": "Professional and composed — navy slate palette, minimal features, smooth motion",
+      "author": "Agent Face",
+      "file": "community/corporate.face.json"
+    },
+    {
+      "id": "cyberpunk",
+      "name": "Cyberpunk",
+      "description": "Neon-lit dark aesthetic with sharp edges and electric energy",
+      "author": "Agent Face",
+      "file": "community/cyberpunk.face.json"
+    },
+    {
+      "id": "halloween",
+      "name": "Halloween",
+      "description": "Spooky jack-o-lantern vibes — glowing dots in the dark, eerie and playful",
+      "author": "Agent Face",
+      "file": "community/halloween.face.json"
+    },
+    {
+      "id": "kawaii",
+      "name": "Kawaii",
+      "description": "Pastel cuteness overload with big sparkly eyes and maximum blush",
+      "author": "Agent Face",
+      "file": "community/kawaii.face.json"
+    },
+    {
+      "id": "lobster",
+      "name": "Lobster",
+      "description": "Traditional crustacean look — orange shell, black eyes, grounded movement",
+      "author": "Open Face",
+      "file": "community/lobster.face.json"
+    },
+    {
+      "id": "space-lobster",
+      "name": "Space Lobster",
+      "description": "Deep-sea consciousness — bioluminescent, ancient, and a little cosmic",
+      "author": "Clawd 🦞",
+      "file": "community/space-lobster.face.json"
+    },
+    {
+      "id": "retro",
+      "name": "Retro",
+      "description": "Classic terminal green-on-black with an 8-bit soul",
+      "author": "Agent Face",
+      "file": "community/retro.face.json"
+    },
+    {
+      "id": "robot",
+      "name": "Robot",
+      "description": "Mechanical precision — rectangular eyes with scan line, slit mouth",
+      "author": "Agent Face",
+      "file": "community/robot.face.json"
+    },
+    {
+      "id": "warm",
+      "name": "Warm",
+      "description": "Round, friendly, bouncy — big eyes, warm palette, expressive",
+      "author": "Agent Face",
+      "file": "community/warm.face.json"
+    },
+    {
+      "id": "zen",
+      "name": "Zen",
+      "description": "Calm, minimal, meditative — dot eyes, slow movements",
+      "author": "Agent Face",
+      "file": "community/zen.face.json"
+    },
+    {
+      "id": "sticker",
+      "name": "Sticker",
+      "description": "Bold sticker-style mascot — chunky brows, bright palette, high readability at small sizes",
+      "author": "Agent Face",
+      "file": "community/sticker.face.json"
+    },
+    {
+      "id": "mono-terminal",
+      "name": "Mono Terminal",
+      "description": "Monochrome terminal persona — rigid pixel-like expression with restrained, deterministic motion",
+      "author": "Agent Face",
+      "file": "community/mono-terminal.face.json"
+    },
+    {
+      "id": "clay-buddy",
+      "name": "Clay Buddy",
+      "description": "Soft clay-like companion — rounded features, gentle lids, plush motion",
+      "author": "Agent Face",
+      "file": "community/clay-buddy.face.json"
+    }
+  ]
+}

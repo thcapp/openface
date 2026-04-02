@@ -1,0 +1,12 @@
+{
+  "id": "openface",
+  "name": "Open Face",
+  "version": "0.1.0",
+  "description": "Animates an Open Face server in real-time from agent lifecycle events",
+  "config": {
+    "face_url": { "type": "string", "default": "http://localhost:9999", "description": "Open Face server URL" },
+    "face_api_key": { "type": "string", "default": "", "description": "API key for authenticated pushes" },
+    "tts_enabled": { "type": "boolean", "default": false, "description": "Enable TTS via external server" },
+    "tts_url": { "type": "string", "default": "http://localhost:9200", "description": "Kokoro TTS server URL" }
+  }
+}

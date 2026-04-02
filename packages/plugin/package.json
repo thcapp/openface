@@ -1,0 +1,12 @@
+{
+  "name": "@openface/plugin",
+  "version": "0.1.0",
+  "description": "OpenClaw plugin — drives Open Face from agent lifecycle events",
+  "type": "module",
+  "main": "src/index.ts",
+  "files": ["src/", "openclaw.plugin.json", "README.md"],
+  "license": "MIT",
+  "dependencies": {
+    "@openface/filter": "workspace:*"
+  }
+}

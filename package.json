@@ -1,0 +1,40 @@
+{
+  "name": "open-face",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Animated faces for AI agents — protocol, renderer, server",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thcapp/openface.git"
+  },
+  "homepage": "https://openface.live",
+  "workspaces": [
+    "packages/*"
+  ],
+	"scripts": {
+		"build": "bun run build:element && bun run build:server && bun run build:edge && bun run build:site",
+    "build:element": "bun build packages/element/src/index.ts --outdir packages/element/dist --target browser --minify --entry-naming open-face.js",
+    "build:server": "cp packages/element/dist/open-face.js packages/server/public/ && rm -rf packages/server/public/faces && mkdir -p packages/server/public/faces && cp -r faces/* packages/server/public/faces/",
+		"build:edge": "cp packages/element/dist/open-face.js packages/server-edge/public/ && rm -rf packages/server-edge/public/faces && mkdir -p packages/server-edge/public/faces && cp -r faces/* packages/server-edge/public/faces/",
+    "build:site": "cp packages/element/dist/open-face.js site/ && rm -rf site/faces && mkdir -p site/faces && cp -r faces/* site/faces/",
+    "dev": "bun run build:element && bun run build:server && bun packages/server/src/index.ts",
+		"test": "bun test packages/renderer/test/ packages/server/test/ packages/filter/test/ packages/client/test/ packages/mcp/test/ && bun test packages/plugin/test/",
+		"test:faces": "bun test packages/renderer/test/face-manifest.test.ts",
+		"qa:faces": "bun scripts/generate-face-qa-matrix.mjs && bun run test:faces",
+		"qa:faces:capture": "bun scripts/capture-face-matrix.mjs",
+		"qa:builder": "bun scripts/qa-builder-regressions.mjs",
+		"qa:parity": "bun scripts/qa-surface-parity-and-sweep.mjs",
+		"qa:release": "bun run qa:builder && bun run qa:parity && bun run qa:faces:capture",
+		"check": "biome check .",
+    "format": "biome format --write .",
+    "deploy": "bun run build && bun run deploy:site && bun run deploy:product",
+    "deploy:site": "wr pages deploy site/ --project-name=openface --commit-dirty=true",
+    "deploy:product": "wr pages deploy packages/server/public/ --project-name=oface-io --commit-dirty=true"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "typescript": "^5.7.0",
+    "playwright": "^1.58.0"
+  },
+  "license": "MIT"
+}

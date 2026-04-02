@@ -1,0 +1,19 @@
+{
+  "name": "@openface/server",
+  "version": "0.1.0",
+  "description": "Open Face WebSocket relay server (Bun)",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./state": "./src/state.ts",
+    "./rate-limit": "./src/rate-limit.ts"
+  },
+  "scripts": {
+    "start": "bun src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "test": "bun test"
+  },
+  "files": ["src/", "README.md"],
+  "license": "MIT"
+}

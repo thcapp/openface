@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open Face</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+    open-face { display: block; width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <open-face id="face" audio-enabled></open-face>
+  <script type="module" src="/open-face.js"></script>
+  <script type="module">
+    const prefs = {
+      get(k, def) { try { return localStorage.getItem("of:" + k) || def; } catch { return def; } },
+      set(k, v) { try { localStorage.setItem("of:" + k, v); } catch {} },
+    };
+
+    const params = new URLSearchParams(window.location.search);
+    const face = document.getElementById("face");
+
+    const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
+    const server = params.get("server") || wsProto + "//" + location.host + "/ws/viewer";
+    face.setAttribute("server", server);
+
+    const pack = params.get("face") || params.get("pack") || prefs.get("face", "");
+    if (pack) face.setAttribute("face", pack);
+
+    const style = params.get("style") || prefs.get("style", "classic");
+    face.setAttribute("style-variant", style);
+
+    if (params.get("bg") === "transparent" || params.get("bg") === "chroma") {
+      document.body.style.background = params.get("bg") === "chroma" ? "#00FF00" : "transparent";
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,586 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openface.live/protocol/v1/face.schema.json",
+  "title": "Open Face Definition",
+  "description": "Schema for .face.json files — defines the visual identity of a face pack",
+  "type": "object",
+  "required": ["meta", "geometry", "palette"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "$type": { "const": "face" },
+    "$version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+
+    "meta": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 50 },
+        "author": { "type": "string", "maxLength": 100 },
+        "license": { "type": "string" },
+        "description": { "type": "string", "maxLength": 200 }
+      }
+    },
+
+    "geometry": {
+      "type": "object",
+      "required": ["eyes", "mouth"],
+      "properties": {
+        "shape": {
+          "type": "string",
+          "enum": ["fullscreen", "circle", "rounded", "oval", "squircle", "hexagon", "diamond", "egg", "pill", "shield", "cloud", "octagon"],
+          "default": "fullscreen"
+        },
+        "head": {
+          "type": "object",
+          "properties": {
+            "shape": {
+              "type": "string",
+              "enum": ["fullscreen", "circle", "rounded", "oval", "squircle", "hexagon", "diamond", "egg", "pill", "shield", "cloud", "octagon"]
+            },
+            "width": { "type": "number", "minimum": 0.05, "maximum": 1.5 },
+            "height": { "type": "number", "minimum": 0.05, "maximum": 1.5 },
+            "verticalPosition": { "type": "number", "minimum": -1, "maximum": 1 },
+            "radius": { "type": "number", "minimum": 0, "maximum": 0.5 },
+            "strokeWidth": { "type": "number", "minimum": 0, "maximum": 0.2 }
+          },
+          "additionalProperties": false
+        },
+        "eyes": {
+          "type": "object",
+          "required": ["style", "baseWidth", "baseHeight", "spacing"],
+          "properties": {
+            "style": {
+              "type": "string",
+              "enum": ["oval", "round", "rectangle", "dot", "almond", "crescent", "star", "heart", "cat", "cross", "diamond", "semicircle"]
+            },
+            "baseWidth": { "type": "number", "minimum": 0.01, "maximum": 0.3 },
+            "baseHeight": { "type": "number", "minimum": 0.01, "maximum": 0.3 },
+            "spacing": { "type": "number", "minimum": 0.05, "maximum": 0.5 },
+            "verticalPosition": { "type": "number", "minimum": -0.5, "maximum": 0.5 },
+            "specular": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "shape": { "type": "string", "enum": ["circle", "star", "crescent", "dual", "line", "cross", "ring", "none"] },
+                "size": { "type": "number" },
+                "shiftX": { "type": "number" },
+                "shiftY": { "type": "number" },
+                "lookFollow": { "type": "number" },
+                "alpha": { "type": "number" }
+              },
+              "additionalProperties": false
+            },
+            "pupil": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "shape": { "type": "string", "enum": ["circle", "slit", "star", "heart", "diamond", "cross", "ring", "flower", "spiral", "none"] },
+                "size": { "type": "number" },
+                "shiftX": { "type": "number" },
+                "shiftY": { "type": "number" },
+                "lookFollow": { "type": "number" },
+                "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+              },
+              "additionalProperties": false
+            },
+            "eyelid": {
+              "type": "object",
+              "properties": {
+                "renderer": { "type": "string", "enum": ["none", "cover"] },
+                "strength": { "type": "number" },
+                "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+              },
+              "additionalProperties": false
+            },
+            "eyelash": {
+              "type": "object",
+              "properties": {
+                "style": { "type": "string", "enum": ["none", "simple", "thick", "wing", "bottom", "full", "spider"] }
+              },
+              "additionalProperties": false
+            },
+            "constraints": {
+              "type": "object",
+              "properties": {
+                "scaleMin": { "type": "number" },
+                "scaleMax": { "type": "number" }
+              },
+              "additionalProperties": false
+            },
+            "stateScales": {
+              "type": "object",
+              "propertyNames": {
+                "enum": ["idle", "thinking", "speaking", "listening", "reacting", "puzzled", "alert", "working", "sleeping", "waiting", "loading"]
+              },
+              "additionalProperties": {
+                "type": "array",
+                "items": { "type": "number" },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            },
+            "leftOverride": {
+              "type": "object",
+              "description": "Per-eye overrides for the left eye (heterochromia, mixed styles)",
+              "properties": {
+                "style": { "type": "string", "enum": ["oval", "round", "rectangle", "dot", "almond", "crescent", "star", "heart", "cat", "cross", "diamond", "semicircle"] },
+                "pupilShape": { "type": "string", "enum": ["circle", "slit", "star", "heart", "diamond", "cross", "ring", "flower", "spiral", "none"] },
+                "pupilColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                "specularShape": { "type": "string", "enum": ["circle", "star", "crescent", "dual", "line", "cross", "ring", "none"] },
+                "specularSize": { "type": "number" }
+              },
+              "additionalProperties": false
+            },
+            "rightOverride": {
+              "type": "object",
+              "description": "Per-eye overrides for the right eye (heterochromia, mixed styles)",
+              "properties": {
+                "style": { "type": "string", "enum": ["oval", "round", "rectangle", "dot", "almond", "crescent", "star", "heart", "cat", "cross", "diamond", "semicircle"] },
+                "pupilShape": { "type": "string", "enum": ["circle", "slit", "star", "heart", "diamond", "cross", "ring", "flower", "spiral", "none"] },
+                "pupilColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                "specularShape": { "type": "string", "enum": ["circle", "star", "crescent", "dual", "line", "cross", "ring", "none"] },
+                "specularSize": { "type": "number" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "mouth": {
+          "type": "object",
+          "required": ["width", "style"],
+          "properties": {
+            "width": { "type": "number", "minimum": 0.01, "maximum": 0.5 },
+            "verticalPosition": { "type": "number" },
+            "style": {
+              "type": "string",
+              "enum": ["curve", "cat", "slit", "zigzag", "pixel", "circle", "fang", "smirk", "wave", "none"]
+            },
+            "speakingBase": { "type": "number" },
+            "renderer": { "type": "string", "enum": ["fill", "line"] },
+            "rendererByState": {
+              "type": "object",
+              "propertyNames": {
+                "enum": ["idle", "thinking", "speaking", "listening", "reacting", "puzzled", "alert", "working", "sleeping", "waiting", "loading"]
+              },
+              "additionalProperties": { "type": "string", "enum": ["fill", "line"] }
+            },
+            "rendererByEmotion": {
+              "type": "object",
+              "propertyNames": {
+                "enum": ["neutral", "happy", "sad", "confused", "excited", "concerned", "surprised", "playful", "frustrated", "skeptical", "determined", "embarrassed", "proud"]
+              },
+              "additionalProperties": { "type": "string", "enum": ["fill", "line"] }
+            },
+            "constraints": {
+              "type": "object",
+              "properties": {
+                "openMin": { "type": "number" },
+                "openMax": { "type": "number" },
+                "widthMin": { "type": "number" },
+                "widthMax": { "type": "number" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "brows": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "baseThickness": { "type": "number" },
+            "range": { "type": "number" },
+            "curveRange": { "type": "number" },
+            "verticalOffset": { "type": "number" },
+            "renderer": { "type": "string", "enum": ["line", "flat", "block", "none", "arch", "angled", "thick", "dot"] },
+            "rendererByState": {
+              "type": "object",
+              "propertyNames": {
+                "enum": ["idle", "thinking", "speaking", "listening", "reacting", "puzzled", "alert", "working", "sleeping", "waiting", "loading"]
+              },
+              "additionalProperties": { "type": "string", "enum": ["line", "flat", "block", "none", "arch", "angled", "thick", "dot"] }
+            },
+            "rendererByEmotion": {
+              "type": "object",
+              "propertyNames": {
+                "enum": ["neutral", "happy", "sad", "confused", "excited", "concerned", "surprised", "playful", "frustrated", "skeptical", "determined", "embarrassed", "proud"]
+              },
+              "additionalProperties": { "type": "string", "enum": ["line", "flat", "block", "none", "arch", "angled", "thick", "dot"] }
+            },
+            "constraints": {
+              "type": "object",
+              "properties": {
+                "min": { "type": "number" },
+                "max": { "type": "number" }
+              }
+            }
+          }
+        },
+        "locks": {
+          "type": "object",
+          "properties": {
+            "eyes": { "type": "boolean" },
+            "mouth": { "type": "boolean" },
+            "brows": { "type": "boolean" }
+          }
+        },
+        "blush": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "maxAlpha": { "type": "number" },
+            "size": { "type": "number" }
+          }
+        },
+        "nose": {
+          "type": "object",
+          "properties": {
+            "style": { "type": "string", "enum": ["none", "dot", "line", "triangle", "L", "button"] },
+            "size": { "type": "number", "minimum": 0.1, "maximum": 2 },
+            "verticalPosition": { "type": "number", "minimum": -0.2, "maximum": 0.2 },
+            "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+          },
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "anchor": {
+              "type": "object",
+              "properties": {
+                "x": { "type": "number", "minimum": -1, "maximum": 1 },
+                "y": { "type": "number", "minimum": -1, "maximum": 1 }
+              },
+              "additionalProperties": false
+            },
+            "shape": { "type": "string", "enum": ["capsule", "trapezoid", "roundedRect", "blob"] },
+            "width": { "type": "number", "minimum": 0.05, "maximum": 1 },
+            "height": { "type": "number", "minimum": 0.05, "maximum": 1 },
+            "radius": { "type": "number", "minimum": 0, "maximum": 0.5 },
+            "neck": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "width": { "type": "number", "minimum": 0, "maximum": 0.5 },
+                "height": { "type": "number", "minimum": 0, "maximum": 0.5 },
+                "offsetY": { "type": "number", "minimum": -0.8, "maximum": 0.8 }
+              },
+              "additionalProperties": false
+            },
+            "shoulders": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "width": { "type": "number", "minimum": 0, "maximum": 1.2 },
+                "slope": { "type": "number", "minimum": -0.5, "maximum": 0.5 },
+                "thickness": { "type": "number", "minimum": 0, "maximum": 0.5 }
+              },
+              "additionalProperties": false
+            },
+            "arms": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "style": { "type": "string", "enum": ["none", "line", "arc"] },
+                "spread": { "type": "number", "minimum": 0, "maximum": 1 },
+                "drop": { "type": "number", "minimum": -0.5, "maximum": 1 },
+                "bend": { "type": "number", "minimum": -0.5, "maximum": 0.5 },
+                "thickness": { "type": "number", "minimum": 0, "maximum": 0.5 }
+              },
+              "additionalProperties": false
+            },
+            "motion": {
+              "type": "object",
+              "properties": {
+                "breathFollow": { "type": "number", "minimum": 0, "maximum": 2 },
+                "tiltFollow": { "type": "number", "minimum": 0, "maximum": 2 },
+                "weightShift": { "type": "number", "minimum": 0, "maximum": 2 },
+                "idleSway": { "type": "number", "minimum": 0, "maximum": 2 },
+                "idleSwayRate": { "type": "number", "minimum": 0, "maximum": 8 },
+                "speakingBob": { "type": "number", "minimum": 0, "maximum": 2 }
+              },
+              "additionalProperties": false
+            },
+            "constraints": {
+              "type": "object",
+              "properties": {
+                "maxTilt": { "type": "number", "minimum": 0, "maximum": 0.5 },
+                "maxShiftX": { "type": "number", "minimum": 0, "maximum": 0.5 },
+                "maxShiftY": { "type": "number", "minimum": 0, "maximum": 0.5 }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+
+    "palette": {
+      "type": "object",
+      "required": ["states"],
+      "properties": {
+        "feature": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "eyeFill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "Eye fill color (overrides feature color)" },
+        "eyeStroke": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "Eye stroke color for closed-eye lines (overrides feature color)" },
+        "mouthFill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "Mouth fill color (overrides feature color)" },
+        "mouthStroke": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "Mouth stroke color for line-mode (overrides feature color)" },
+        "browFill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "Brow color (overrides feature color)" },
+        "head": {
+          "type": "object",
+          "properties": {
+            "fill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "stroke": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+          },
+          "additionalProperties": false
+        },
+        "specular": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "blush": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "nose": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "Nose color (overrides feature color)" },
+        "body": {
+          "type": "object",
+          "properties": {
+            "fill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "stroke": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "neck": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "arms": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "shadow": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "shadowAlpha": { "type": "number", "minimum": 0, "maximum": 1 }
+          },
+          "additionalProperties": false
+        },
+        "states": {
+          "type": "object",
+          "propertyNames": {
+            "enum": ["idle", "thinking", "speaking", "listening", "reacting", "puzzled", "alert", "working", "sleeping", "waiting", "loading"]
+          },
+          "additionalProperties": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+        },
+        "emotions": {
+          "type": "object",
+          "propertyNames": {
+            "enum": ["neutral", "happy", "sad", "confused", "excited", "concerned", "surprised", "playful", "frustrated", "skeptical", "determined", "embarrassed", "proud"]
+          },
+          "additionalProperties": { "type": ["string", "null"] }
+        },
+        "emotionColorBlend": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "How much emotion colors override state colors. 0 = state only, 1 = full emotion override."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "animation": {
+      "type": "object",
+      "properties": {
+        "breathAmount": { "type": "number" },
+        "breathY": { "type": "number" },
+        "headSway": { "type": "number" },
+        "blinkInterval": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 2, "maxItems": 2
+        },
+        "doubleBlink": { "type": "number" },
+        "colorSpeed": { "type": "object" },
+        "lerp": { "type": "object" },
+        "microExpressions": { "type": "object" }
+      }
+    },
+
+    "personality": {
+      "type": "object",
+      "properties": {
+        "energy": { "type": "number", "minimum": 0, "maximum": 1 },
+        "expressiveness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "warmth": { "type": "number", "minimum": 0, "maximum": 1 },
+        "stability": { "type": "number", "minimum": 0, "maximum": 1 },
+        "playfulness": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+
+    "accessories": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "anchor"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "type": { "type": "string", "enum": ["antenna", "glasses"] },
+          "enabled": { "type": "boolean" },
+          "layer": { "type": "string", "enum": ["back", "mid", "front", "overlay"] },
+          "anchor": {
+            "type": "object",
+            "required": ["x", "y"],
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" }
+            },
+            "additionalProperties": false
+          },
+          "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+          "stateOverrides": {
+            "type": "object",
+            "propertyNames": {
+              "enum": ["idle", "thinking", "speaking", "listening", "reacting", "puzzled", "alert", "working", "sleeping", "waiting", "loading"]
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                "tipColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                "tipSize": { "type": "number" },
+                "lineWidth": { "type": "number" },
+                "lensAlpha": { "type": "number" },
+                "restAngle": { "type": "number", "minimum": -85, "maximum": 85 },
+                "restCurve": { "type": "number", "minimum": -1, "maximum": 1 },
+                "tipCurl": { "type": "number", "minimum": -1, "maximum": 1 },
+                "physics": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": { "type": "boolean" },
+                    "stiffness": { "type": "number" },
+                    "damping": { "type": "number" },
+                    "gravity": { "type": "number" },
+                    "headInfluence": { "type": "number" }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "emotionOverrides": {
+            "type": "object",
+            "propertyNames": {
+              "enum": ["neutral", "happy", "sad", "confused", "excited", "concerned", "surprised", "playful", "frustrated", "skeptical", "determined", "embarrassed", "proud"]
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                "tipColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                "tipSize": { "type": "number" },
+                "lineWidth": { "type": "number" },
+                "lensAlpha": { "type": "number" },
+                "restAngle": { "type": "number", "minimum": -85, "maximum": 85 },
+                "restCurve": { "type": "number", "minimum": -1, "maximum": 1 },
+                "tipCurl": { "type": "number", "minimum": -1, "maximum": 1 },
+                "physics": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": { "type": "boolean" },
+                    "stiffness": { "type": "number" },
+                    "damping": { "type": "number" },
+                    "gravity": { "type": "number" },
+                    "headInfluence": { "type": "number" }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "type": { "const": "antenna" } } },
+            "then": {
+              "required": ["segments", "segmentLength"],
+              "properties": {
+                "segments": { "type": "integer", "minimum": 2, "maximum": 8 },
+                "segmentLength": { "type": "number", "minimum": 0.01, "maximum": 0.15 },
+                "restAngle": { "type": "number", "minimum": -85, "maximum": 85 },
+                "restCurve": { "type": "number", "minimum": -1, "maximum": 1 },
+                "tipCurl": { "type": "number", "minimum": -1, "maximum": 1 },
+                "thickness": {
+                  "type": "object",
+                  "required": ["base", "tip"],
+                  "properties": {
+                    "base": { "type": "number" },
+                    "tip": { "type": "number" }
+                  },
+                  "additionalProperties": false
+                },
+                "tipShape": { "type": "string", "enum": ["circle", "diamond"] },
+                "tipSize": { "type": "number", "minimum": 0.004, "maximum": 0.05 },
+                "tipColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                "symmetry": { "type": "string", "enum": ["none", "mirrorX"] },
+                "physics": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": { "type": "boolean" },
+                    "stiffness": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "damping": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "gravity": { "type": "number", "minimum": -1, "maximum": 1 },
+                    "headInfluence": { "type": "number", "minimum": 0, "maximum": 2 }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          {
+            "if": { "properties": { "type": { "const": "glasses" } } },
+            "then": {
+              "required": ["shape"],
+              "properties": {
+                "shape": { "type": "string", "enum": ["round", "rect"] },
+                "frameWidth": { "type": "number" },
+                "frameHeight": { "type": "number" },
+                "bridgeWidth": { "type": "number" },
+                "lineWidth": { "type": "number" },
+                "followEyes": { "type": "number", "minimum": 0, "maximum": 1 },
+                "lensAlpha": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            }
+          }
+        ],
+        "additionalProperties": false
+      }
+    },
+
+    "decorations": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["freckles", "tears", "sweat", "scar", "stripes", "sparkles", "bandaid", "hearts", "stars", "lines"]
+          },
+          "enabled": { "type": "boolean", "default": true },
+          "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+          "alpha": { "type": "number", "minimum": 0, "maximum": 1 },
+          "size": { "type": "number", "minimum": 0.1, "maximum": 2 }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "states": {
+      "type": "object",
+      "description": "Per-state visual parameters (mouth, brows, lid, tilt, etc.)",
+      "propertyNames": {
+        "enum": ["idle", "thinking", "speaking", "listening", "reacting", "puzzled", "alert", "working", "sleeping", "waiting", "loading"]
+      }
+    },
+
+    "emotionDeltas": {
+      "type": "object",
+      "description": "Emotion overlays applied additively on top of state parameters",
+      "propertyNames": {
+        "enum": ["happy", "sad", "confused", "excited", "concerned", "surprised", "playful", "frustrated", "skeptical", "determined", "embarrassed", "proud"]
+      }
+    }
+  },
+  "additionalProperties": false
+}

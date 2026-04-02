@@ -1,0 +1,23 @@
+{
+  "name": "@openface/element",
+  "version": "0.1.0",
+  "description": "<open-face> web component — drop-in animated AI face",
+  "type": "module",
+  "main": "dist/open-face.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/open-face.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target browser --minify --entry-naming open-face.js",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@openface/renderer": "workspace:*"
+  },
+  "files": ["dist/", "README.md"],
+  "license": "MIT"
+}

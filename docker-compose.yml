@@ -1,0 +1,18 @@
+services:
+  openface:
+    build: .
+    restart: always
+    ports:
+      - "9999:9999"
+    environment:
+      FACE_PORT: 9999
+      FACE_API_KEY: ${FACE_API_KEY:-}
+      FACE_IDLE_TIMEOUT: 30000
+      FACE_MAX_VIEWERS: 50
+      FACE_MAX_AGENTS: 5
+      FACE_RATE_LIMIT: 60
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"

@@ -1,0 +1,482 @@
+{
+  "$schema": "https://openface.live/protocol/v1/face.schema.json",
+  "$type": "face",
+  "$version": "1.0.0",
+  "meta": {
+    "name": "Lobster",
+    "author": "Open Face",
+    "license": "MIT",
+    "description": "Full crustacean mode — deep red shell, long sweeping antennae, twitchy underwater motion"
+  },
+  "geometry": {
+    "shape": "fullscreen",
+    "head": {
+      "shape": "rounded",
+      "width": 0.82,
+      "height": 0.64,
+      "verticalPosition": -0.085,
+      "radius": 0.18,
+      "strokeWidth": 0.0045
+    },
+    "eyes": {
+      "style": "dot",
+      "baseWidth": 0.036,
+      "baseHeight": 0.036,
+      "spacing": 0.205,
+      "verticalPosition": -0.06,
+      "constraints": {
+        "scaleMin": 0.85,
+        "scaleMax": 1.32
+      },
+      "stateScales": {
+        "idle": [
+          1,
+          1
+        ],
+        "thinking": [
+          0.94,
+          0.9
+        ],
+        "working": [
+          0.95,
+          0.95
+        ],
+        "speaking": [
+          1.02,
+          1
+        ],
+        "listening": [
+          1.12,
+          1.12
+        ],
+        "reacting": [
+          1.2,
+          1.16
+        ],
+        "puzzled": [
+          0.9,
+          1.08
+        ],
+        "alert": [
+          1.26,
+          1.26
+        ],
+        "sleeping": [
+          0.95,
+          0.95
+        ],
+        "waiting": [
+          1,
+          1
+        ],
+        "loading": [
+          0.9,
+          0.9
+        ]
+      },
+      "specular": {
+        "enabled": false,
+        "size": 0,
+        "shiftX": 0.5,
+        "shiftY": 0.5,
+        "lookFollow": 0,
+        "alpha": 0
+      }
+    },
+    "mouth": {
+      "width": 0.11,
+      "verticalPosition": 0.132,
+      "style": "slit",
+      "renderer": "line",
+      "rendererByState": {
+        "speaking": "fill",
+        "reacting": "fill",
+        "alert": "fill"
+      },
+      "speakingBase": 0.07,
+      "constraints": {
+        "openMin": 0,
+        "openMax": 0.58,
+        "widthMin": -0.22,
+        "widthMax": 0.18
+      }
+    },
+    "brows": {
+      "enabled": false,
+      "renderer": "none",
+      "constraints": {
+        "min": 0,
+        "max": 0
+      }
+    },
+    "blush": {
+      "enabled": false,
+      "maxAlpha": 0,
+      "size": 0.45
+    },
+    "body": {
+      "enabled": true,
+      "anchor": {
+        "x": 0,
+        "y": 0.355
+      },
+      "shape": "roundedRect",
+      "width": 0.38,
+      "height": 0.26,
+      "radius": 0.08,
+      "neck": {
+        "enabled": false,
+        "width": 0.1,
+        "height": 0.04,
+        "offsetY": -0.16
+      },
+      "shoulders": {
+        "enabled": false,
+        "width": 0.52,
+        "slope": 0.08,
+        "thickness": 0.06
+      },
+      "arms": {
+        "enabled": true,
+        "style": "arc",
+        "spread": 0.34,
+        "drop": 0.24,
+        "bend": 0.22,
+        "thickness": 0.034
+      },
+      "motion": {
+        "breathFollow": 0.46,
+        "tiltFollow": 0.34,
+        "weightShift": 0.32,
+        "idleSway": 0.16,
+        "idleSwayRate": 1.05,
+        "speakingBob": 0.1
+      },
+      "constraints": {
+        "maxTilt": 0.038,
+        "maxShiftX": 0.042,
+        "maxShiftY": 0.036
+      }
+    }
+  },
+  "palette": {
+    "feature": "#111111",
+    "blush": "#7A2A20",
+    "body": {
+      "fill": "#8A1D1D",
+      "stroke": "#5A1212",
+      "neck": "#5A1212",
+      "arms": "#671616",
+      "shadow": "#170505",
+      "shadowAlpha": 0.24
+    },
+    "states": {
+      "idle": "#8E1F1F",
+      "thinking": "#7B1A1A",
+      "speaking": "#9A2420",
+      "listening": "#96261E",
+      "reacting": "#AA2C22",
+      "puzzled": "#742020",
+      "alert": "#5E1616",
+      "working": "#832121",
+      "sleeping": "#4A1313",
+      "waiting": "#6D1E1E",
+      "loading": "#601919"
+    },
+    "emotions": {
+      "neutral": null,
+      "happy": "#B7342A",
+      "sad": "#5A1A1A",
+      "confused": "#7C2520",
+      "excited": "#C73D2F",
+      "concerned": "#6A1E1E",
+      "surprised": "#D15135",
+      "playful": "#A9342A",
+      "frustrated": "#451010",
+      "skeptical": "#6A2520",
+      "determined": "#892C24",
+      "embarrassed": "#7D3028",
+      "proud": "#B4422F"
+    },
+    "emotionColorBlend": 0.5,
+    "specular": "#FFFFFF",
+    "head": {
+      "fill": "#A52424",
+      "stroke": "#5A1212"
+    }
+  },
+  "animation": {
+    "breathAmount": 0.022,
+    "breathY": 0.014,
+    "headSway": 0.015,
+    "blinkInterval": [
+      2.8,
+      5.4
+    ],
+    "doubleBlink": 0.2,
+    "colorSpeed": {
+      "default": 0.04,
+      "alert": 0.18,
+      "sleeping": 0.016
+    },
+    "lerp": {
+      "amplitude": 0.36,
+      "lookAt": 0.07,
+      "mouth": 0.3,
+      "happiness": 0.12,
+      "confusion": 0.2,
+      "brows": 0.1,
+      "eyeScale": 0.14,
+      "tilt": 0.08,
+      "blush": 0.06,
+      "wink": 0.32,
+      "lid": 0.36
+    },
+    "microExpressions": {
+      "enabled": true,
+      "eyeDart": {
+        "interval": [
+          5,
+          12
+        ],
+        "rangeX": 0.45,
+        "rangeY": 0.2,
+        "duration": 0.24
+      },
+      "mouthTwitch": {
+        "interval": [
+          4,
+          9
+        ],
+        "range": 0.08
+      }
+    }
+  },
+  "personality": {
+    "energy": 0.72,
+    "expressiveness": 0.68,
+    "warmth": 0.4,
+    "stability": 0.35,
+    "playfulness": 0.52
+  },
+  "accessories": [
+    {
+      "id": "antenna-main",
+      "type": "antenna",
+      "layer": "front",
+      "anchor": {
+        "x": 0.2,
+        "y": -0.235
+      },
+      "segments": 8,
+      "segmentLength": 0.14,
+      "restAngle": 62,
+      "restCurve": 0.62,
+      "tipCurl": 1,
+      "thickness": {
+        "base": 0.014,
+        "tip": 0.0036
+      },
+      "tipShape": "circle",
+      "tipSize": 0.0075,
+      "color": "#5E1B12",
+      "tipColor": "#742217",
+      "symmetry": "mirrorX",
+      "physics": {
+        "enabled": true,
+        "stiffness": 0.9,
+        "damping": 0.92,
+        "gravity": 0,
+        "headInfluence": 0.85
+      },
+      "stateOverrides": {
+        "thinking": {
+          "restCurve": 0.7,
+          "tipCurl": 1,
+          "physics": {
+            "stiffness": 0.86,
+            "damping": 0.84
+          }
+        },
+        "sleeping": {
+          "restAngle": 56,
+          "restCurve": 0.58,
+          "tipCurl": 0.92,
+          "physics": {
+            "gravity": 0.03,
+            "stiffness": 0.6,
+            "damping": 0.93
+          }
+        },
+        "alert": {
+          "restAngle": 70,
+          "restCurve": 0.78,
+          "tipCurl": 1,
+          "physics": {
+            "gravity": 0,
+            "stiffness": 0.92,
+            "damping": 0.8,
+            "headInfluence": 1.05
+          }
+        },
+        "reacting": {
+          "physics": {
+            "damping": 0.78,
+            "headInfluence": 1.18
+          }
+        },
+        "speaking": {
+          "physics": {
+            "damping": 0.84
+          }
+        }
+      }
+    }
+  ],
+  "states": {
+    "idle": {
+      "mouth": 0.03,
+      "happiness": 0,
+      "lid": 0.95
+    },
+    "thinking": {
+      "mouth": 0.015,
+      "happiness": 0,
+      "lid": 0.7,
+      "tilt": 0.01,
+      "autogaze": {
+        "x": [
+          0.08,
+          0.32
+        ],
+        "y": [
+          -0.3,
+          -0.12
+        ],
+        "speed": [
+          0.28,
+          0.45
+        ]
+      }
+    },
+    "working": {
+      "mouth": 0.015,
+      "happiness": 0.03,
+      "lid": 0.8,
+      "tilt": -0.008
+    },
+    "speaking": {
+      "happiness": 0.06
+    },
+    "listening": {
+      "mouth": 0.02,
+      "happiness": 0.04,
+      "lid": 1.08,
+      "tilt": 0.014
+    },
+    "reacting": {
+      "mouth": 0.42,
+      "happiness": 0.1,
+      "lid": 0.88
+    },
+    "puzzled": {
+      "mouth": 0.02,
+      "happiness": 0,
+      "confusion": 1,
+      "lid": 0.82,
+      "tilt": -0.02
+    },
+    "alert": {
+      "mouth": 0.36,
+      "happiness": -0.2,
+      "lid": 1.2,
+      "shake": 8,
+      "bounce": 1.03
+    },
+    "sleeping": {
+      "mouth": 0.01,
+      "happiness": 0,
+      "lid": 0,
+      "tilt": 0.015
+    },
+    "waiting": {
+      "mouth": 0.02,
+      "happiness": 0,
+      "lid": 1,
+      "tilt": 0
+    },
+    "loading": {
+      "mouth": 0.01,
+      "happiness": 0,
+      "lid": 0.5,
+      "tilt": 0
+    }
+  },
+  "emotionDeltas": {
+    "happy": {
+      "happiness": 0.2,
+      "eyeScale": [
+        0.04,
+        0.04
+      ]
+    },
+    "sad": {
+      "happiness": -0.35,
+      "mouthCap": 0.35,
+      "eyeScale": [
+        -0.03,
+        -0.03
+      ]
+    },
+    "confused": {
+      "confusion": 0.4
+    },
+    "excited": {
+      "happiness": 0.26,
+      "eyeScale": [
+        0.08,
+        0.08
+      ]
+    },
+    "concerned": {
+      "happiness": -0.12,
+      "lidMult": 0.9
+    },
+    "surprised": {
+      "mouthMin": 0.26,
+      "happiness": 0,
+      "lidMin": 1.12,
+      "eyeScale": [
+        0.16,
+        0.16
+      ]
+    },
+    "playful": {
+      "happiness": 0.18,
+      "tilt": 0.02
+    },
+    "frustrated": {
+      "happiness": -0.2,
+      "mouthWidth": -0.14,
+      "lidMult": 0.86
+    },
+    "skeptical": {
+      "happiness": -0.06,
+      "tilt": -0.02
+    },
+    "determined": {
+      "lidMult": 0.9,
+      "mouthWidth": -0.08
+    },
+    "embarrassed": {
+      "blush": 0.2,
+      "happiness": 0.08,
+      "tilt": 0.022
+    },
+    "proud": {
+      "happiness": 0.22,
+      "lidMult": 0.9,
+      "tilt": -0.016
+    }
+  }
+}
