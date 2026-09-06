@@ -129,7 +129,7 @@ export async function handleGallerySubmit(
 	return Response.json({
 		ok: true,
 		id,
-		url: `https://openface.live/packs#${id}`,
+		url: `https://openface.live/gallery.html#pack=${encodeURIComponent(`gallery:${id}`)}`,
 	}, { status: 201, headers: cors });
 }
 
