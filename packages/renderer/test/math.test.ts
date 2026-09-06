@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { dlerp, hexToRGB, rgbToHex, brighten } from "../src/math.js";
+import { dlerp, hexToRGB, rgbToHex, brighten, softLimit } from "../src/math.js";
 
 describe("dlerp", () => {
 	test("returns current when speed is 0", () => {
@@ -28,6 +28,26 @@ describe("dlerp", () => {
 		for (let i = 0; i < 30; i++) val30 = dlerp(val30, 1.0, 0.1, 1 / 30);
 
 		expect(Math.abs(val60 - val30)).toBeLessThan(0.01);
+	});
+
+	test("saturates multiplied speeds without NaN or overshoot at high refresh rates", () => {
+		for (const dt of [1 / 30, 1 / 60, 1 / 120, 1 / 144]) {
+			expect(dlerp(0.2, 0.8, 1.4, dt)).toBeCloseTo(0.8, 12);
+		}
+		expect(dlerp(0.2, 0.8, 1.4, 0)).toBe(0.2);
+	});
+});
+
+describe("softLimit", () => {
+	test("preserves the midpoint but intentionally compresses other values", () => {
+		expect(softLimit(0, -0.1, 0.1)).toBe(0);
+		expect(softLimit(0.1, -0.1, 0.1)).toBeLessThan(0.1);
+		expect(softLimit(0, 0, 1)).toBeGreaterThan(0);
+	});
+
+	test("supports fixed ranges without division by zero", () => {
+		expect(softLimit(0.5, 0, 0)).toBe(0);
+		expect(softLimit(0.5, 1, 1)).toBe(1);
 	});
 });
 

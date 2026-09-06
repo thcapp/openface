@@ -98,7 +98,7 @@ function normalizeAccessory(raw: unknown, index: number): AccessoryDefinition {
 	} as const;
 
 	if (type === "antenna") {
-		if (!Number.isInteger(raw.segments)) {
+		if (typeof raw.segments !== "number" || !Number.isInteger(raw.segments)) {
 			throw new Error(`[openface] accessories[${index}].segments must be an integer.`);
 		}
 		const segments = raw.segments;
@@ -861,8 +861,8 @@ export function applyFaceDefinition(
 
 	geom.stateOverrides = def.states ? { ...def.states } : {};
 	geom.emotionOverrides = def.emotionDeltas ? { ...(def.emotionDeltas as Record<string, Record<string, unknown>>) } : {};
-	geom.accessories = normalizeAccessories((def as Record<string, unknown>).accessories);
-	geom.decorations = normalizeDecorations((def as Record<string, unknown>).decorations);
+	geom.accessories = normalizeAccessories(def.accessories);
+	geom.decorations = normalizeDecorations(def.decorations);
 }
 
 /** Create default state colors. */

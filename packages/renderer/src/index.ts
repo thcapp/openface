@@ -47,7 +47,7 @@ export type { Archetype, Personality } from "./face-generator.js";
 
 import { createAnticipationState, createBlinkState, createMicroState } from "./blink.js";
 import type { AnticipationState, BlinkState, MicroState } from "./blink.js";
-import { createColorState, drawFace } from "./draw.js";
+import { computeSceneFrame, createColorState, drawFace } from "./draw.js";
 import {
 	createAntennaPhysicsState,
 	isAntennaPhysicsStateValid,
@@ -133,8 +133,8 @@ export class FaceRenderer {
 		this.canvas = options.canvas;
 		this.style = options.style ?? "classic";
 
-		const needsAlpha = this.style === "minimal";
-		this.ctx = this.canvas.getContext("2d", { alpha: needsAlpha })!;
+		// Context attributes cannot change after creation; all styles support switching to an overlay.
+		this.ctx = this.canvas.getContext("2d", { alpha: true })!;
 
 		this.target = {
 			state: "idle", emotion: "neutral",
@@ -320,9 +320,10 @@ export class FaceRenderer {
 
 	private buildAccessorySimulationFrame(): AccessorySimulationFrame | null {
 		if (!this.width || !this.height) return null;
-		const unit = Math.min(this.width, this.height);
-		const cx = this.width / 2 + (this.interpCtx.reducedMotion ? 0 : this.current.shake * Math.sin(this.interpCtx.stateTime * 40 * Math.PI * 2));
-		const cy = this.height / 2;
+		const scene = computeSceneFrame(this.width, this.height, this.geom);
+		const unit = scene.unit;
+		const cx = scene.cx + (this.interpCtx.reducedMotion ? 0 : this.current.shake * Math.sin(this.interpCtx.stateTime * 40 * Math.PI * 2));
+		const cy = scene.cy;
 		const breathY = this.current.breathe * unit * this.geom.breathY;
 		return {
 			unit,
@@ -413,8 +414,6 @@ export class FaceRenderer {
 	/** Set the rendering style variant. */
 	setStyle(style: StyleVariant): void {
 		this.style = style;
-		const needsAlpha = style === "minimal";
-		this.ctx = this.canvas.getContext("2d", { alpha: needsAlpha })!;
 	}
 
 	/** Mark as disconnected (shows overlay). */

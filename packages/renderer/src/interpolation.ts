@@ -1,7 +1,11 @@
 import type { AnticipationState, BlinkState, MicroState } from "./blink.js";
 import { triggerAnticipation, updateAnticipation, updateBlink, updateMicro } from "./blink.js";
-import { dlerp, saccadeLerp, softLimit } from "./math.js";
+import { dlerp, saccadeLerp } from "./math.js";
 import type { CurrentState, FaceEmotion, FaceGeometry, FaceState, TargetState } from "./types.js";
+
+function clamp(value: number, min: number, max: number): number {
+	return Math.max(min, Math.min(max, value));
+}
 
 export interface InterpolationContext {
 	activeState: FaceState;
@@ -246,9 +250,8 @@ export function interpolate(
 
 	// Smooth continuous values
 	current.amplitude = dlerp(current.amplitude, target.amplitude, geom.lerpAmplitude * geom.animSpeed, dt);
-	const lookSaccade = Math.min(0.6, Math.max(0.2, geom.lerpLookAt * 8));
-	current.lookX = saccadeLerp(current.lookX, target.lookX, dt, 0.3, lookSaccade, geom.lerpLookAt);
-	current.lookY = saccadeLerp(current.lookY, target.lookY, dt, 0.3, lookSaccade, geom.lerpLookAt);
+	let lookXTarget = target.lookX;
+	let lookYTarget = target.lookY;
 
 	// Breathing
 	current.breathe = ctx.reducedMotion
@@ -298,9 +301,9 @@ export function interpolate(
 			browRTarget = 0.5;
 			tiltTarget = 0.02;
 			// Auto-gaze when no external lookAt push
-			if (ctx.lastLookAtElapsed > 2) {
-				target.lookX = 0.3 + Math.sin(ctx.stateTime * 0.7) * 0.15;
-				target.lookY = -0.3 + Math.cos(ctx.stateTime * 0.5) * 0.1;
+			if (!ctx.reducedMotion && ctx.lastLookAtElapsed > 2) {
+				lookXTarget = 0.3 + Math.sin(ctx.stateTime * 0.7) * 0.15;
+				lookYTarget = -0.3 + Math.cos(ctx.stateTime * 0.5) * 0.1;
 			}
 			break;
 		case "working":
@@ -362,8 +365,8 @@ export function interpolate(
 			if (!ctx.reducedMotion && ctx.lastLookAtElapsed > 3) {
 				const glanceCycle = Math.sin(ctx.stateTime * 0.4);
 				if (glanceCycle > 0.7) {
-					target.lookX = -0.2;
-					target.lookY = 0.15;
+					lookXTarget = -0.2;
+					lookYTarget = 0.15;
 				}
 			}
 			break;
@@ -454,25 +457,6 @@ export function interpolate(
 		mouthTarget = mouthTarget * deltas.mouthMult + 0.02;
 	}
 
-	// Feature locks preserve pack identity under state/emotion turbulence.
-	if (geom.lockEyes) {
-		eyeScaleLTarget = baseEyeScaleLTarget;
-		eyeScaleRTarget = baseEyeScaleRTarget;
-		slopeLTarget = baseSlopeLTarget;
-		slopeRTarget = baseSlopeRTarget;
-		squintTarget = baseSquintTarget;
-	}
-	if (geom.lockBrows) {
-		browLTarget = baseBrowLTarget;
-		browRTarget = baseBrowRTarget;
-		confusionTarget = baseConfusionTarget;
-	}
-	if (geom.lockMouth) {
-		mouthTarget = baseMouthTarget;
-		mouthWidthTarget = baseMouthWidthTarget;
-		mouthAsymTarget = baseMouthAsymTarget;
-	}
-
 	// Emotion-specific idle variations (from ESP32/Vector research)
 	// These layer on top of the base state, making each emotion feel alive differently
 	if (!ctx.reducedMotion && (s === "idle" || s === "listening" || s === "waiting")) {
@@ -538,33 +522,7 @@ export function interpolate(
 	// Squint reduces apparent lid
 	lidTarget *= (1 - squintTarget * 0.15);
 
-	// ── Soft limiting — smooth compression, no hard clips ──
-	const eyeMin = Math.min(geom.eyeScaleMin, geom.eyeScaleMax);
-	const eyeMax = Math.max(geom.eyeScaleMin, geom.eyeScaleMax);
-	const browMin = Math.min(geom.browMin, geom.browMax);
-	const browMax = Math.max(geom.browMin, geom.browMax);
-	const mouthOpenMin = Math.min(geom.mouthOpenMin, geom.mouthOpenMax);
-	const mouthOpenMax = Math.max(geom.mouthOpenMin, geom.mouthOpenMax);
-	const mouthWidthMin = Math.min(geom.mouthWidthMin, geom.mouthWidthMax);
-	const mouthWidthMax = Math.max(geom.mouthWidthMin, geom.mouthWidthMax);
-
-	eyeScaleLTarget = softLimit(eyeScaleLTarget, eyeMin, eyeMax);
-	eyeScaleRTarget = softLimit(eyeScaleRTarget, eyeMin, eyeMax);
-	browLTarget = softLimit(browLTarget, browMin, browMax);
-	browRTarget = softLimit(browRTarget, browMin, browMax);
-	happyTarget = softLimit(happyTarget, -1, 1);
-	confusionTarget = softLimit(confusionTarget, 0, 1);
-	lidTarget = softLimit(lidTarget, 0, 1.5);
-	tiltTarget = softLimit(tiltTarget, -0.08, 0.08);
-	blushTarget = softLimit(blushTarget, 0, 1);
-	squintTarget = softLimit(squintTarget, 0, 0.8);
-	mouthTarget = softLimit(mouthTarget, mouthOpenMin, mouthOpenMax);
-	mouthWidthTarget = softLimit(mouthWidthTarget, mouthWidthMin, mouthWidthMax);
-	mouthAsymTarget = softLimit(mouthAsymTarget, -0.5, 0.5);
-	slopeLTarget = softLimit(slopeLTarget, -0.6, 0.6);
-	slopeRTarget = softLimit(slopeRTarget, -0.6, 0.6);
-
-	// Micro-expressions (only in idle/listening when motion is allowed)
+	// Micro-expressions affect the pose, never the caller's persistent gaze command.
 	const microActive = geom.microEnabled && !ctx.reducedMotion && (s === "idle" || s === "listening");
 	const microResult = updateMicro(micro, dt, microActive, geom.microFreqMult, {
 		jitterInterval: geom.microJitterInterval,
@@ -578,16 +536,60 @@ export function interpolate(
 		mouthTwitchRange: geom.microMouthTwitchRange,
 	});
 	happyTarget += microResult.happinessDelta;
+	const lookSaccade = Math.min(0.6, Math.max(0.2, geom.lerpLookAt * 8));
+	current.lookX = saccadeLerp(current.lookX, clamp(lookXTarget + microResult.dartX, -1, 1), dt, 0.3, lookSaccade, geom.lerpLookAt);
+	current.lookY = saccadeLerp(current.lookY, clamp(lookYTarget + microResult.dartY, -1, 1), dt, 0.3, lookSaccade, geom.lerpLookAt);
 
-	// Apply micro dart offsets to lookAt targets
-	target.lookX += microResult.dartX;
-	target.lookY += microResult.dartY;
-
-	// Apply anticipation offsets to targets
 	lidTarget += antOffsets.lidOffset;
 	mouthTarget += antOffsets.mouthOffset;
 	browLTarget += antOffsets.browOffset;
 	browRTarget += antOffsets.browOffset;
+
+	// Locks win over emotion, coupling, idle motion, and anticipation.
+	if (geom.lockEyes) {
+		eyeScaleLTarget = baseEyeScaleLTarget;
+		eyeScaleRTarget = baseEyeScaleRTarget;
+		slopeLTarget = baseSlopeLTarget;
+		slopeRTarget = baseSlopeRTarget;
+		squintTarget = baseSquintTarget;
+	}
+	if (geom.lockBrows) {
+		browLTarget = baseBrowLTarget;
+		browRTarget = baseBrowRTarget;
+		confusionTarget = baseConfusionTarget;
+	}
+	if (geom.lockMouth) {
+		mouthTarget = baseMouthTarget;
+		mouthWidthTarget = baseMouthWidthTarget;
+		mouthAsymTarget = baseMouthAsymTarget;
+	}
+
+	// Preserve authored values inside their bounds. Lerp supplies temporal smoothing;
+	// a centered tanh here biases zero squint/blush/confusion away from neutral.
+	const eyeMin = Math.min(geom.eyeScaleMin, geom.eyeScaleMax);
+	const eyeMax = Math.max(geom.eyeScaleMin, geom.eyeScaleMax);
+	const browMin = Math.min(geom.browMin, geom.browMax);
+	const browMax = Math.max(geom.browMin, geom.browMax);
+	const mouthOpenMin = Math.min(geom.mouthOpenMin, geom.mouthOpenMax);
+	const mouthOpenMax = Math.max(geom.mouthOpenMin, geom.mouthOpenMax);
+	const mouthWidthMin = Math.min(geom.mouthWidthMin, geom.mouthWidthMax);
+	const mouthWidthMax = Math.max(geom.mouthWidthMin, geom.mouthWidthMax);
+
+	eyeScaleLTarget = clamp(eyeScaleLTarget, eyeMin, eyeMax);
+	eyeScaleRTarget = clamp(eyeScaleRTarget, eyeMin, eyeMax);
+	browLTarget = clamp(browLTarget, browMin, browMax);
+	browRTarget = clamp(browRTarget, browMin, browMax);
+	happyTarget = clamp(happyTarget, -1, 1);
+	confusionTarget = clamp(confusionTarget, 0, 1);
+	lidTarget = clamp(lidTarget, 0, 1.5);
+	tiltTarget = clamp(tiltTarget, -0.08, 0.08);
+	blushTarget = clamp(blushTarget, 0, 1);
+	squintTarget = clamp(squintTarget, 0, 0.8);
+	mouthTarget = clamp(mouthTarget, mouthOpenMin, mouthOpenMax);
+	mouthWidthTarget = clamp(mouthWidthTarget, mouthWidthMin, mouthWidthMax);
+	mouthAsymTarget = clamp(mouthAsymTarget, -0.5, 0.5);
+	slopeLTarget = clamp(slopeLTarget, -0.6, 0.6);
+	slopeRTarget = clamp(slopeRTarget, -0.6, 0.6);
 
 	// Unified transition speed — all params accelerate together for 300ms after change
 	const spd = geom.animSpeed;

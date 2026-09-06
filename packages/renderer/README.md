@@ -151,8 +151,11 @@ Each frame:
    │   ├── gaze parallax (eyes compress sideways)
    │   ├── per-eye gaze asymmetry
    │   └── squint reduces lid
-   ├── soft limiting (tanh compression, no hard clips)
    ├── micro-expressions  — jitter + glance offsets
+   ├── anticipation offsets
+   ├── feature locks     — preserve state baselines after all expression layers
+   ├── pose constraints  — preserve authored values; clamp only outside bounds
+   ├── interpolation     — smooth movement toward the constrained pose
    └── blink              — per-state intervals, asymmetric close/open
 4. drawFace()             — render everything from interpolated values
 ```
@@ -161,9 +164,21 @@ Each frame:
 
 When state or emotion changes, all lerp speeds get a 1.5x boost for 300ms. This makes the entire expression morph together — no more brows arriving before eyes, or mouth settling before tilt. After 300ms, speeds return to normal for smooth idle behavior.
 
-### Soft Limiting
+### Pose Constraints
 
-Parameters use `softLimit()` (tanh-based) instead of hard `Math.max/min` clamps. Values compress smoothly near boundaries — a parameter approaching its limit decelerates naturally instead of hitting a wall. This prevents visual "popping" when effects stack.
+Expression targets retain their authored values inside the configured bounds, including zero and equal minimum/maximum constraints. Locks and constraints apply after expression layers and anticipation; frame-rate-independent interpolation then smooths movement toward the resulting pose. Transition and personality multipliers saturate interpolation speed at 1 to avoid non-finite results at high refresh rates.
+
+These are hard safety bounds on targets, not a soft-knee expression compressor: inputs beyond a bound saturate. This intentionally replaces the earlier global tanh policy, which changed valid poses, including neutral zero. `softLimit()` remains for symmetric, zero-centered secondary body motion; it preserves only the range midpoint. Any future facial soft knee must be an explicit authored response curve, not hidden inside constraint validation.
+
+Micro-expressions and automatic glances are temporary gaze offsets. They do not modify the persistent look direction returned by `getState()`.
+
+### Character Frame And Transparency
+
+Accessory physics and drawing use the same `computeSceneFrame()` scale and origin. This keeps simulated antenna roots attached when a head/body combination is fitted or the canvas changes aspect ratio. Scene bounds still use conservative estimates; the shared transform does not guarantee containment of every custom accessory motion.
+
+Canvas contexts are created with alpha support so `setStyle("minimal")` works after an opaque style. Opaque styles still paint the full background.
+
+From the repository root, `bun run qa:characters` builds current sources in a temporary directory and runs Chromium checks for every manifest pack across states/emotions, antenna attachment after resize, and transparency switching at device pixel ratios 1 and 2. It prints the artifact directory containing JSON results and contact sheets. These checks establish rendering contracts; the images still need art direction and visual review.
 
 ### Personality Parameters
 

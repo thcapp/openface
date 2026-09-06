@@ -4,7 +4,10 @@
  * adjusted for the elapsed `dt` in seconds.
  */
 export function dlerp(current: number, target: number, speed: number, dt: number): number {
-	return current + (target - current) * (1 - Math.pow(1 - speed, dt * 60));
+	if (dt <= 0 || speed <= 0) return current;
+	// Personality and transition multipliers can push a valid authored speed above 1.
+	const blend = 1 - Math.pow(1 - Math.min(speed, 1), dt * 60);
+	return current + (target - current) * blend;
 }
 
 export function hexToRGB(hex: string): [number, number, number] {
@@ -17,10 +20,12 @@ export function rgbToHex(r: number, g: number, b: number): string {
 }
 
 /**
- * Soft limiting — values compress smoothly as they approach limits.
- * No hard clipping. Uses tanh to create smooth rolloff.
+ * Midpoint-centered tanh compression, not an identity-preserving constraint.
+ * Only the midpoint stays unchanged. Use for zero-centered secondary motion
+ * with symmetric bounds, not authored poses whose neutral may be an endpoint.
  */
 export function softLimit(val: number, min: number, max: number): number {
+	if (min === max) return min;
 	const mid = (min + max) / 2;
 	const range = (max - min) / 2;
 	return mid + range * Math.tanh((val - mid) / range);

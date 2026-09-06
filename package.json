@@ -21,6 +21,7 @@
 		"test": "bun test packages/renderer/test/ packages/server/test/ packages/server-edge/test/ packages/filter/test/ packages/client/test/ packages/mcp/test/ && bun test packages/plugin/test/",
 		"test:faces": "bun test packages/renderer/test/face-manifest.test.ts",
 		"qa:faces": "bun scripts/generate-face-qa-matrix.mjs && bun run test:faces",
+		"qa:characters": "bun scripts/qa-character-contracts.mjs",
 		"qa:faces:capture": "bun scripts/capture-face-matrix.mjs",
 		"qa:builder": "bun scripts/qa-builder-regressions.mjs",
 		"qa:parity": "bun scripts/qa-surface-parity-and-sweep.mjs",

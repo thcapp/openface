@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createAnticipationState, createBlinkState, createMicroState } from "../src/blink.js";
 import { createDefaultGeometry } from "../src/face-loader.js";
-import { interpolate } from "../src/interpolation.js";
+import { interpolate, type InterpolationContext } from "../src/interpolation.js";
 import type { CurrentState, TargetState } from "../src/types.js";
 
 function makeCurrent(): CurrentState {
@@ -51,6 +51,93 @@ function makeTarget(): TargetState {
 }
 
 describe("interpolate", () => {
+	function fixture(reducedMotion = true) {
+		const current = makeCurrent();
+		const target = { ...makeTarget(), state: "idle" as const } as TargetState;
+		const geom = createDefaultGeometry();
+		const ctx: InterpolationContext = {
+			activeState: "idle", activeEmotion: "neutral", stateTime: 0,
+			lastLookAtElapsed: 0, transitionElapsed: 1, reducedMotion,
+			anticipation: createAnticipationState(),
+		};
+		const blink = createBlinkState();
+		blink.nextBlink = 1000;
+		const micro = createMicroState();
+		const step = (frames = 240, dt = 1 / 120) => {
+			for (let i = 0; i < frames; i++) interpolate(current, target, ctx, blink, micro, geom, dt);
+		};
+		return { current, target, geom, ctx, micro, step };
+	}
+
+	test("preserves neutral zero and exact authored pose values", () => {
+		const { current, geom, step } = fixture();
+		geom.stateOverrides.idle = { mouth: 0, lid: 1, eyeScale: [1, 1] };
+		step();
+		expect(current.confusion).toBe(0);
+		expect(current.squint).toBe(0);
+		expect(current.blushAlpha).toBe(0);
+		expect(current.mouthOpen).toBe(0);
+		expect(current.eyeScaleL).toBe(1);
+		expect(current.eyeScaleR).toBe(1);
+		expect(current.lidTop).toBe(1);
+	});
+
+	test("keeps fixed constraints finite through anticipation and fast transitions", () => {
+		const { current, target, geom, step } = fixture(false);
+		geom.eyeScaleMin = geom.eyeScaleMax = 1;
+		geom.browMin = geom.browMax = 0;
+		geom.mouthOpenMin = geom.mouthOpenMax = 0;
+		geom.mouthWidthMin = geom.mouthWidthMax = 0;
+		geom.animSpeed = 1.4;
+		geom.lerpMouth = geom.lerpBrows = geom.lerpEyeScale = 1;
+		for (const state of ["alert", "speaking", "thinking", "idle"] as const) {
+			target.state = state;
+			target.emotion = "excited";
+			target.amplitude = 1;
+			for (let frame = 0; frame < 40; frame++) {
+				step(1);
+				expect(Object.values(current).every(Number.isFinite)).toBe(true);
+				expect(current.eyeScaleL).toBe(1);
+				expect(current.browLeft).toBe(0);
+				expect(current.mouthOpen).toBe(0);
+				expect(current.mouthWidth).toBe(0);
+			}
+		}
+	});
+
+	test("applies feature locks after gaze, coupling, and emotion idle motion", () => {
+		const { current, target, geom, step } = fixture(false);
+		geom.lockEyes = geom.lockBrows = geom.lockMouth = true;
+		geom.stateOverrides.idle = { mouth: 0, brows: [0, 0], eyeScale: [1, 1] };
+		target.lookX = 1;
+		target.lookY = -1;
+		target.emotion = "playful";
+		step(600);
+		expect(current.eyeScaleL).toBe(1);
+		expect(current.eyeScaleR).toBe(1);
+		expect(current.eyeSlopeL).toBe(0);
+		expect(current.eyeSlopeR).toBe(0);
+		expect(current.browLeft).toBe(0);
+		expect(current.browRight).toBe(0);
+		expect(current.mouthOpen).toBe(0);
+	});
+
+	test("does not accumulate micro-expression offsets into persistent gaze", () => {
+		const { current, target, micro, step } = fixture(false);
+		target.lookX = 0.95;
+		target.lookY = -0.95;
+		micro.nextJitter = micro.nextGlance = 0;
+		const command = structuredClone(target);
+		step(1200);
+		expect(target).toEqual(command);
+		expect(Math.abs(current.lookX)).toBeLessThanOrEqual(1);
+		expect(Math.abs(current.lookY)).toBeLessThanOrEqual(1);
+		target.state = "thinking";
+		step(600);
+		expect(target.lookX).toBe(command.lookX);
+		expect(target.lookY).toBe(command.lookY);
+	});
+
 	test("uses geometry eyeStateScales for base state eye targets", () => {
 		const geom = createDefaultGeometry();
 		geom.eyeStateScales.thinking = [0.65, 1.35];
