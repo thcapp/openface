@@ -4,6 +4,7 @@ import { renderUnclaimedHtml, renderViewerHtml } from "./viewer-pages.js";
 
 export interface FaceRoutesEnv {
 	FACE_REGISTRY?: KVNamespace;
+	FACE_ROOM?: DurableObjectNamespace;
 	FACE_API_KEY: string;
 	GITHUB_CLIENT_ID: string;
 	GITHUB_CLIENT_SECRET: string;
@@ -110,36 +111,34 @@ export async function handleClaim(request: Request, env: FaceRoutesEnv, cors: Re
 	}
 	const username = usernameValidation.username;
 
-	// Check if taken
-	const existing = await env.FACE_REGISTRY.get(`face:${username}`);
-	if (existing) {
-		return Response.json({ error: "Username is taken" }, { status: 409, headers: cors });
+	// A username is a uniqueness guarantee, so the claim must be serialized. Checking
+	// KV and then writing it cannot provide that — KV is eventually consistent with no
+	// atomic transactions, so two concurrent claims both saw an absent record, both
+	// received a distinct key, and only one key survived the final write. The username's
+	// Durable Object runs one handler at a time, so it can decide ownership; KV stays
+	// the read cache that viewers, auth, and account listings use.
+	if (!env.FACE_ROOM) {
+		return Response.json({ error: "Registry not configured" }, { status: 503, headers: cors });
 	}
 
-	// Generate API key
-	const keyBytes = new Uint8Array(24);
-	crypto.getRandomValues(keyBytes);
-	const apiKey = "oface_ak_" + Array.from(keyBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+	const stub = env.FACE_ROOM.get(env.FACE_ROOM.idFromName(username));
+	const claimRes = await stub.fetch("https://face.internal/internal/claim", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ username, face: body.face, githubUser }),
+	});
 
-	const record: Record<string, unknown> = {
-		username,
-		face: body.face || "default",
-		apiKey,
-		createdAt: new Date().toISOString(),
-		config: {},
-	};
-
-	// Attach GitHub user if authenticated
-	if (githubUser) {
-		record.githubUser = githubUser;
+	if (!claimRes.ok) {
+		const err = await claimRes.json().catch(() => ({ error: "Claim failed" })) as { error?: string };
+		return Response.json({ error: err.error || "Claim failed" }, { status: claimRes.status, headers: cors });
 	}
 
-	await env.FACE_REGISTRY.put(`face:${username}`, JSON.stringify(record));
+	const { record } = await claimRes.json() as { record: { apiKey: string } };
 
 	return Response.json({
 		ok: true,
 		username,
-		apiKey,
+		apiKey: record.apiKey,
 		url: `https://oface.io/${username}`,
 		wsUrl: `wss://oface.io/${username}/ws/viewer`,
 		pushUrl: `https://oface.io/${username}/api/state`,

@@ -6,10 +6,21 @@
 import { createDefaultState, mergeState, publicState } from "@openface/server/state";
 import type { FaceStateData } from "@openface/server/state";
 
-interface FaceRoomEnv {
+export interface FaceRoomEnv {
 	OPENCLAW_GATEWAY_URL?: string;
 	OPENCLAW_GATEWAY_TOKEN?: string;
 	OPENCLAW_SESSION_KEY?: string;
+	FACE_REGISTRY?: KVNamespace;
+}
+
+/** Authoritative ownership record for this username, held in Durable Object storage. */
+export interface ClaimRecord {
+	username: string;
+	face: string;
+	apiKey: string;
+	createdAt: string;
+	config: Record<string, unknown>;
+	githubUser?: string;
 }
 
 type WsTag = "viewer" | "agent";
@@ -71,6 +82,13 @@ export class FaceRoom implements DurableObject {
 			}
 
 			return new Response(null, { status: 101, webSocket: client });
+		}
+
+		// POST /internal/claim — serialized ownership claim. Deliberately not in the
+		// worker's route allowlist, so it is unreachable from outside; only the
+		// worker's own stub call can get here.
+		if (url.pathname === "/internal/claim" && request.method === "POST") {
+			return claimHandler(this.ctx, this.env, request);
 		}
 
 		// POST /api/state
@@ -262,6 +280,73 @@ export class FaceRoom implements DurableObject {
 			}, 5000);
 		}
 	}
+}
+
+/**
+ * Claim this username. Durable Object handlers for one id run one at a time, so the
+ * read-then-write below cannot interleave — which is exactly what the previous KV
+ * implementation could not guarantee. KV is eventually consistent with no atomic
+ * transactions, so two concurrent claims both saw an absent record, both minted a
+ * key, and both returned success while only one key survived the final write.
+ */
+export async function claimHandler(
+	ctx: DurableObjectState,
+	env: FaceRoomEnv,
+	request: Request,
+): Promise<Response> {
+	let body: { username?: string; face?: string; githubUser?: string };
+	try {
+		body = await request.json() as typeof body;
+	} catch {
+		return Response.json({ error: "Invalid request" }, { status: 400, headers: corsHeaders() });
+	}
+	const username = body.username;
+	if (!username) {
+		return Response.json({ error: "Invalid request" }, { status: 400, headers: corsHeaders() });
+	}
+
+	let claim = await ctx.storage.get("claim") as ClaimRecord | undefined;
+
+	// Adopt claims made before this Durable Object became the authority, so existing
+	// owners are not displaced by the first caller after the change.
+	if (!claim && env.FACE_REGISTRY) {
+		const legacy = await env.FACE_REGISTRY.get(`face:${username}`, "json") as ClaimRecord | null;
+		if (legacy) {
+			claim = legacy;
+			await ctx.storage.put("claim", legacy);
+		}
+	}
+
+	if (claim) {
+		return Response.json({ error: "Username is taken" }, { status: 409, headers: corsHeaders() });
+	}
+
+	const keyBytes = new Uint8Array(24);
+	crypto.getRandomValues(keyBytes);
+	const record: ClaimRecord = {
+		username,
+		face: body.face || "default",
+		apiKey: "oface_ak_" + Array.from(keyBytes).map((b) => b.toString(16).padStart(2, "0")).join(""),
+		createdAt: new Date().toISOString(),
+		config: {},
+		...(body.githubUser ? { githubUser: body.githubUser } : {}),
+	};
+
+	await ctx.storage.put("claim", record);
+
+	// KV is the read cache for viewers, auth, and account listings. If it cannot be
+	// written the claim is unusable, so release the lock rather than leave an owner
+	// holding a key that authenticates against nothing.
+	if (env.FACE_REGISTRY) {
+		try {
+			await env.FACE_REGISTRY.put(`face:${username}`, JSON.stringify(record));
+		} catch {
+			await ctx.storage.delete("claim");
+			return Response.json({ error: "Registry unavailable" }, { status: 503, headers: corsHeaders() });
+		}
+	}
+
+	return Response.json({ ok: true, record }, { headers: corsHeaders() });
 }
 
 function corsHeaders() {
