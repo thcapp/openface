@@ -44,7 +44,7 @@ export class FaceRoom implements DurableObject {
 
 		// WebSocket upgrade — Hibernation API
 		if (request.headers.get("upgrade") === "websocket") {
-			const role: WsTag = url.pathname.includes("/agent") ? "agent" : "viewer";
+			const role: WsTag = url.pathname === "/ws/agent" ? "agent" : "viewer";
 
 			if (role === "viewer" && this.getViewers().length >= 50) {
 				return new Response("Too many viewers", { status: 503 });
@@ -74,7 +74,7 @@ export class FaceRoom implements DurableObject {
 		}
 
 		// POST /api/state
-		if (url.pathname.endsWith("/api/state") && request.method === "POST") {
+		if (url.pathname === "/api/state" && request.method === "POST") {
 			try {
 				const data = await request.json() as Record<string, unknown>;
 				mergeState(this.current, data);
@@ -87,7 +87,7 @@ export class FaceRoom implements DurableObject {
 		}
 
 		// POST /api/audio
-		if (url.pathname.endsWith("/api/audio") && request.method === "POST") {
+		if (url.pathname === "/api/audio" && request.method === "POST") {
 			try {
 				const contentType = request.headers.get("content-type") || "";
 				let b64: string;
@@ -112,14 +112,14 @@ export class FaceRoom implements DurableObject {
 		}
 
 		// POST /api/audio-done
-		if (url.pathname.endsWith("/api/audio-done") && request.method === "POST") {
+		if (url.pathname === "/api/audio-done" && request.method === "POST") {
 			const msg = JSON.stringify({ type: "audio-done", seq: this.audioSeq });
 			this.broadcastToViewers(msg);
 			return Response.json({ ok: true, seq: this.audioSeq }, { headers: corsHeaders() });
 		}
 
 		// POST /api/speak
-		if (url.pathname.endsWith("/api/speak") && request.method === "POST") {
+		if (url.pathname === "/api/speak" && request.method === "POST") {
 			try {
 				const data = await request.json() as Record<string, unknown>;
 				this.audioSeq++;
@@ -136,7 +136,7 @@ export class FaceRoom implements DurableObject {
 		}
 
 		// POST /api/chat
-		if (url.pathname.endsWith("/api/chat") && request.method === "POST") {
+		if (url.pathname === "/api/chat" && request.method === "POST") {
 			const gatewayUrl = this.env.OPENCLAW_GATEWAY_URL;
 			if (!gatewayUrl) {
 				return Response.json({ error: "No gateway configured" }, { status: 503, headers: corsHeaders() });
@@ -163,12 +163,12 @@ export class FaceRoom implements DurableObject {
 		}
 
 		// GET /api/state
-		if (url.pathname.endsWith("/api/state") && request.method === "GET") {
+		if (url.pathname === "/api/state" && request.method === "GET") {
 			return Response.json(publicState(this.current), { headers: corsHeaders() });
 		}
 
 		// GET /health
-		if (url.pathname.endsWith("/health")) {
+		if (url.pathname === "/health") {
 			return Response.json({
 				ok: true,
 				viewers: this.getViewers().length,

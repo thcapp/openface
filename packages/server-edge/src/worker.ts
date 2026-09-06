@@ -43,11 +43,58 @@ interface Env {
 	GITHUB_CLIENT_SECRET: string;
 }
 
+/**
+ * Local dev origins allowed to send credentials: localhost or 127.0.0.1, optional port.
+ * Anchored deliberately — `origin.startsWith("http://localhost")` also matches
+ * registrable domains such as http://localhost.attacker.example.
+ */
+function isLocalDevOrigin(origin: string): boolean {
+	return /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+}
+
+/**
+ * Canonical per-face routes. This gate and the Durable Object dispatcher must agree
+ * exactly on these strings. They previously did not — the gate compared with `===`
+ * while the DO matched with `endsWith()`, so an extra path segment
+ * (`/alice/x/api/state`) skipped auth and still reached the handler.
+ */
+const FACE_ROUTES = new Set([
+	"/",
+	"/dashboard",
+	"/ws/viewer",
+	"/ws/agent",
+	"/api/state",
+	"/api/config",
+	"/api/audio",
+	"/api/audio-done",
+	"/api/speak",
+	"/api/chat",
+	"/health",
+]);
+
+/** Routes requiring the face's API key. */
+function routeNeedsAuth(route: string, method: string): boolean {
+	switch (route) {
+		case "/ws/agent":
+		case "/api/audio":
+		case "/api/audio-done":
+		case "/api/speak":
+			return true;
+		case "/api/state":
+		case "/api/chat":
+			return method === "POST";
+		case "/api/config":
+			return method === "PUT";
+		default:
+			return false;
+	}
+}
+
 /** Build CORS headers — supports credentials for openface.live cross-origin auth */
 function corsHeaders(request?: Request): Record<string, string> {
 	const origin = request?.headers.get("Origin") || "";
 	// Allow credentials from openface.live and localhost dev
-	const allowed = origin === "https://openface.live" || origin.startsWith("http://localhost");
+	const allowed = origin === "https://openface.live" || isLocalDevOrigin(origin);
 	return {
 		"Access-Control-Allow-Origin": allowed ? origin : "*",
 		"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -177,15 +224,15 @@ export default {
 		const username = firstSegment;
 		const rest = "/" + pathParts.slice(1).join("/");
 
-		// ── Auth check for mutation endpoints ──
-		const needsAuth = rest.includes("/ws/agent") ||
-			(rest === "/api/state" && request.method === "POST") ||
-			rest === "/api/audio" ||
-			rest === "/api/audio-done" ||
-			rest === "/api/speak" ||
-			(rest === "/api/config" && request.method === "PUT");
+		// ── Reject unknown sub-paths before they reach the Durable Object ──
+		// An unrecognised route must 404 at the gate; letting it through is what
+		// allowed a looser downstream matcher to serve it without auth.
+		if (!FACE_ROUTES.has(rest)) {
+			return Response.json({ error: "Not found" }, { status: 404, headers: cors });
+		}
 
-		if (needsAuth) {
+		// ── Auth check for mutation endpoints ──
+		if (routeNeedsAuth(rest, request.method)) {
 			const authorized = await checkFaceAuth(request, url, username, env);
 			if (!authorized) {
 				return Response.json({ error: "Unauthorized" }, { status: 401, headers: cors });
