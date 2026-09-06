@@ -22,7 +22,7 @@ test("publication links open the submitted face in the gallery's namespaced deta
 	const result = await response.json() as { id: string; url: string };
 	const url = new URL(result.url);
 	expect(url.origin).toBe("https://openface.live");
-	expect(url.pathname).toBe("/gallery.html");
+	expect(url.pathname).toBe("/gallery");
 	expect(new URLSearchParams(url.hash.slice(1)).get("pack")).toBe(`gallery:${result.id}`);
 	expect(values.has(`gallery:${result.id}`)).toBe(true);
 });
