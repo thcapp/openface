@@ -23,6 +23,7 @@ import {
 import {
 	checkFaceAuth,
 	handleCheck,
+	isFaceOwner,
 	handleClaim,
 	handleGetConfig,
 	handleUpdateConfig,
@@ -233,7 +234,12 @@ export default {
 
 		// ── Auth check for mutation endpoints ──
 		if (routeNeedsAuth(rest, request.method)) {
-			const authorized = await checkFaceAuth(request, url, username, env);
+			let authorized = await checkFaceAuth(request, url, username, env);
+			// Configuration is the one route a signed-in owner may reach with their
+			// session instead of the face key. Everything else stays key-only.
+			if (!authorized && rest === "/api/config" && request.method === "PUT") {
+				authorized = await isFaceOwner(request, username, env);
+			}
 			if (!authorized) {
 				return Response.json({ error: "Unauthorized" }, { status: 401, headers: cors });
 			}

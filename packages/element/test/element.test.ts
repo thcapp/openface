@@ -184,6 +184,41 @@ describe("audio playback lifecycle", () => {
 		expect(stub.audioSeq).toBe(4);
 	});
 
+	// Both servers broadcast the state message (with the text) before the sequence,
+	// so speech has already started when audio-seq lands. Cancelling it is right only
+	// if real audio follows; otherwise the utterance was cut off mid-word and lost.
+	test("an utterance cut off by a sequence is resumed when no audio arrives", async () => {
+		call("ttsSpeak", "the agent reply");
+		stub.ttsSpeaking = true;
+		expect(spoken).toEqual(["the agent reply"]);
+
+		call("handleAudioMessage", { type: "audio-seq", seq: 1 });
+		await sleep(30);
+
+		expect(spoken).toEqual(["the agent reply", "the agent reply"]);
+	});
+
+	test("an utterance cut off by a sequence is not resumed when audio does arrive", async () => {
+		call("ttsSpeak", "the agent reply");
+		stub.ttsSpeaking = true;
+		call("handleAudioMessage", { type: "audio-seq", seq: 1 });
+		call("handleAudioMessage", { type: "audio", seq: 1, data: "chunk" });
+		await sleep(30);
+
+		expect(spoken).toEqual(["the agent reply"]); // external audio supersedes it
+	});
+
+	// audio and audio-done are gated on audioEnabled, so without it no chunk can ever
+	// arrive to release authority — a second way the flag used to latch on forever.
+	test("a viewer that cannot play audio never waits on a sequence", () => {
+		stub.audioEnabled = false;
+		call("handleAudioMessage", { type: "audio-seq", seq: 3 });
+		expect(stub.audioPhase).toBe("idle");
+
+		call("ttsSpeak", "immediate");
+		expect(spoken).toEqual(["immediate"]);
+	});
+
 	test("stale chunks from an older sequence are ignored", () => {
 		call("handleAudioMessage", { type: "audio-seq", seq: 5 });
 		call("handleAudioMessage", { type: "audio", seq: 2, data: "stale" });

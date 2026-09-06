@@ -12,6 +12,32 @@ export interface FaceRoutesEnv {
 }
 
 /** Check auth for a specific face — uses face-specific API key from KV, or global key as fallback */
+/**
+ * Is this request from the GitHub account that owns the face?
+ *
+ * Configuration is an owner action, and the owner is already signed in — the
+ * alternative was putting the face's API key in the dashboard URL, where it would
+ * leak through history, referrers and logs. Deliberately scoped to configuration:
+ * the agent control plane (state, audio, speak, the agent socket) stays key-only,
+ * so a browser session can never drive someone's face.
+ *
+ * A credentialed cross-origin JSON PUT requires a preflight, and the CORS policy
+ * only grants that to origins we control, so this does not open a CSRF path.
+ */
+export async function isFaceOwner(request: Request, username: string, env: FaceRoutesEnv): Promise<boolean> {
+	if (!oauthEnabled(env) || !env.FACE_REGISTRY) return false;
+	const token = getSessionToken(request);
+	if (!token) return false;
+	const session = await getSession(token, env);
+	if (!session) return false;
+	try {
+		const record = await env.FACE_REGISTRY.get(`face:${username}`, "json") as { githubUser?: string } | null;
+		return !!record?.githubUser && record.githubUser === session.githubUser;
+	} catch {
+		return false;
+	}
+}
+
 export async function checkFaceAuth(request: Request, url: URL, username: string, env: FaceRoutesEnv): Promise<boolean> {
 	const auth = request.headers.get("authorization");
 	const token = url.searchParams.get("token");
@@ -238,8 +264,15 @@ export async function handleUpdateConfig(
 			return Response.json({ error: "Not found" }, { status: 404, headers: cors });
 		}
 
-		// Update allowed fields
-		if (typeof updates.face === "string") raw.face = updates.face;
+		// Update allowed fields. The appearance is validated here rather than accepted
+		// blindly — it used to take any string, so a face could be pointed at something
+		// that resolves to nothing and then silently rendered as Default.
+		if (updates.face !== undefined) {
+			if (!parsePackRef(updates.face)) {
+				return Response.json({ error: "Invalid appearance reference" }, { status: 400, headers: cors });
+			}
+			raw.face = updates.face;
+		}
 		if (updates.config && typeof updates.config === "object") {
 			raw.config = { ...(raw.config as Record<string, unknown> || {}), ...updates.config };
 		}

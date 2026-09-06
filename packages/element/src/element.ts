@@ -704,7 +704,10 @@ export class OpenFaceElement extends HTMLElement {
 				// The bump always invalidates stale audio; only a sender that expects to
 				// deliver audio should hold TTS back. Absent field = older sender, so
 				// assume audio may follow and let the bounded timeout handle it.
-				if (data.expectAudio === false) this.audioReleaseAuthority();
+				// `audioEnabled` is checked here too: the audio and audio-done handlers
+				// are gated on it, so without it no chunk can ever arrive to release
+				// authority — this used to be a second way to latch it on forever.
+				if (data.expectAudio === false || !this.audioEnabled) this.audioReleaseAuthority();
 				else this.audioEnterPending();
 			}
 			return;
@@ -736,6 +739,11 @@ export class OpenFaceElement extends HTMLElement {
 	private audioEnterPending(): void {
 		this.audioPhase = "pending";
 		this.audioAuthoritative = true;
+		// Both servers broadcast the state message — carrying the text — before the
+		// sequence, so speech has usually already started by the time this runs.
+		// Cancelling it is right when real audio follows, but if none does, the
+		// utterance must come back rather than being cut off mid-word and dropped.
+		if (this.ttsSpeaking && this.ttsLastText) this.audioDeferredText = this.ttsLastText;
 		this.stopTts();
 		this.audioClearPendingTimer();
 		this.audioPendingTimer = setTimeout(() => this.audioPendingExpired(), this.audioPendingTimeoutMs);
@@ -782,6 +790,9 @@ export class OpenFaceElement extends HTMLElement {
 		}
 		this.ttsSpeaking = false;
 		this.ttsPendingText = "";
+		// Clear the repeat guard's memory too, otherwise resuming a cancelled
+		// utterance is silently treated as a duplicate and dropped.
+		this.ttsLastText = "";
 	}
 
 	private ttsSpeak(text: string): void {

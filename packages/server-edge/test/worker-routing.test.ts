@@ -176,3 +176,100 @@ describe("CORS credentialed origins", () => {
 		});
 	}
 });
+
+describe("owner session auth is scoped to configuration", () => {
+	const SESSION = "f".repeat(64);
+
+	function ownerEnv() {
+		const doCalls: string[] = [];
+		const kv: Record<string, unknown> = {
+			"face:alice": { username: "alice", apiKey: KEY, githubUser: "alice-gh" },
+			[`session:${SESSION}`]: { githubUser: "alice-gh", githubAvatar: "", createdAt: "now" },
+		};
+		return {
+			doCalls,
+			env: {
+				FACE_ROOM: {
+					idFromName: (name: string) => ({ name }),
+					get: () => ({
+						fetch: (req: Request) => {
+							doCalls.push(new URL(req.url).pathname);
+							return Promise.resolve(Response.json({ reached: true }));
+						},
+					}),
+				},
+				FACE_REGISTRY: {
+					get: async (k: string) => kv[k] ?? null,
+					put: async () => {},
+				},
+				FACE_API_KEY: "",
+				OPENCLAW_GATEWAY_URL: "",
+				OPENCLAW_GATEWAY_TOKEN: "",
+				OPENCLAW_SESSION_KEY: "",
+				// OAuth configured, so session auth is live
+				GITHUB_CLIENT_ID: "cid",
+				GITHUB_CLIENT_SECRET: "csecret",
+			},
+		};
+	}
+
+	const asOwner = (path: string, init: RequestInit = {}) => {
+		const { env, doCalls } = ownerEnv();
+		const headers = { ...(init.headers || {}), Cookie: `oface_session=${SESSION}` };
+		// biome-ignore lint/suspicious/noExplicitAny: test env double
+		return worker.fetch(req(path, { ...init, headers }), env as any).then((res) => ({ res, doCalls }));
+	};
+
+	test("the owner may configure their own face with only a session", async () => {
+		const { res } = await asOwner("/alice/api/config", {
+			method: "PUT",
+			body: JSON.stringify({ face: "kawaii" }),
+			headers: { "Content-Type": "application/json" },
+		});
+		expect(res.status).toBe(200);
+	});
+
+	// The control plane must stay key-only — a browser session must never drive a face.
+	for (const [path, method] of [
+		["/alice/api/state", "POST"],
+		["/alice/api/speak", "POST"],
+		["/alice/api/audio", "POST"],
+		["/alice/api/chat", "POST"],
+		["/alice/ws/agent", "GET"],
+	] as const) {
+		test(`a session alone cannot reach ${method} ${path}`, async () => {
+			const { res, doCalls } = await asOwner(path, { method, body: method === "GET" ? undefined : "{}" });
+			expect(res.status).toBe(401);
+			expect(doCalls).toEqual([]);
+		});
+	}
+
+	test("a session belonging to someone else is refused", async () => {
+		const { env, doCalls } = ownerEnv();
+		// biome-ignore lint/suspicious/noExplicitAny: test env double
+		(env.FACE_REGISTRY as any).get = async (k: string) =>
+			k === "face:alice"
+				? { username: "alice", apiKey: KEY, githubUser: "someone-else" }
+				: { githubUser: "alice-gh", githubAvatar: "", createdAt: "now" };
+		const res = await worker.fetch(
+			req("/alice/api/config", {
+				method: "PUT",
+				body: JSON.stringify({ face: "kawaii" }),
+				headers: { Cookie: `oface_session=${SESSION}`, "Content-Type": "application/json" },
+			}),
+			// biome-ignore lint/suspicious/noExplicitAny: test env double
+			env as any,
+		);
+		expect(res.status).toBe(401);
+		expect(doCalls).toEqual([]);
+	});
+
+	test("an unresolvable appearance is rejected rather than stored", async () => {
+		const { res } = await asOwner("/alice/api/config", {
+			method: "PUT",
+			body: JSON.stringify({ face: "../../etc/passwd" }),
+			headers: { "Content-Type": "application/json" },
+		});
+		expect(res.status).toBe(400);
+	});
+});
