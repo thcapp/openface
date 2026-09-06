@@ -119,10 +119,10 @@ export default {
 
 		// ── GitHub OAuth endpoints ──
 		if (url.pathname === "/auth/login" && request.method === "GET") {
-			return handleAuthLogin(env);
+			return handleAuthLogin(request, env);
 		}
 		if (url.pathname === "/auth/callback" && request.method === "GET") {
-			return handleAuthCallback(url, env);
+			return handleAuthCallback(request, url, env);
 		}
 		if (url.pathname === "/auth/me" && request.method === "GET") {
 			return handleAuthMe(request, env, cors);

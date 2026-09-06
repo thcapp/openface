@@ -1,4 +1,19 @@
-import { getSession, getSessionToken, isAdmin, oauthEnabled } from "./auth-session.js";
+import {
+	buildOAuthStateCookie,
+	buildSessionCookie,
+	clearOAuthStateCookie,
+	clearSessionCookie,
+	consumeOAuthState,
+	getOAuthStateCookie,
+	getSession,
+	getSessionToken,
+	isAdmin,
+	oauthEnabled,
+	pkceChallenge,
+	putOAuthState,
+	randomToken,
+	safeReturnTo,
+} from "./auth-session.js";
 
 export interface AuthEnv {
 	FACE_REGISTRY?: KVNamespace;
@@ -6,24 +21,46 @@ export interface AuthEnv {
 	GITHUB_CLIENT_SECRET: string;
 }
 
-/** GET /auth/login — redirect to GitHub OAuth authorize URL */
-export function handleAuthLogin(env: AuthEnv): Response {
+/** GET /auth/login — start a browser-bound, PKCE-protected OAuth flow */
+export async function handleAuthLogin(request: Request, env: AuthEnv): Promise<Response> {
 	if (!oauthEnabled(env)) {
 		return Response.json({ error: "OAuth not configured" }, { status: 503 });
 	}
+	if (!env.FACE_REGISTRY) {
+		return Response.json({ error: "Registry not configured" }, { status: 503 });
+	}
+
+	const returnTo = safeReturnTo(new URL(request.url).searchParams.get("returnTo"));
+
+	// `state` is stored server-side and mirrored into an HttpOnly cookie. The callback
+	// requires both to be present and equal, so a code obtained in someone else's
+	// browser cannot be redeemed in this one.
+	const state = randomToken();
+	const verifier = randomToken();
+	const challenge = await pkceChallenge(verifier);
+
+	await putOAuthState(state, { verifier, returnTo, createdAt: new Date().toISOString() }, env);
+
 	const params = new URLSearchParams({
 		client_id: env.GITHUB_CLIENT_ID,
 		redirect_uri: "https://oface.io/auth/callback",
 		scope: "read:user",
+		state,
+		code_challenge: challenge,
+		code_challenge_method: "S256",
 	});
+
 	return new Response(null, {
 		status: 302,
-		headers: { Location: `https://github.com/login/oauth/authorize?${params}` },
+		headers: {
+			Location: `https://github.com/login/oauth/authorize?${params}`,
+			"Set-Cookie": buildOAuthStateCookie(state),
+		},
 	});
 }
 
-/** GET /auth/callback — exchange code for token, create session */
-export async function handleAuthCallback(url: URL, env: AuthEnv): Promise<Response> {
+/** GET /auth/callback — validate state, exchange code, create session */
+export async function handleAuthCallback(request: Request, url: URL, env: AuthEnv): Promise<Response> {
 	if (!oauthEnabled(env)) {
 		return Response.json({ error: "OAuth not configured" }, { status: 503 });
 	}
@@ -32,8 +69,28 @@ export async function handleAuthCallback(url: URL, env: AuthEnv): Promise<Respon
 	}
 
 	const code = url.searchParams.get("code");
-	if (!code) {
-		return new Response("Missing code parameter", { status: 400 });
+	const state = url.searchParams.get("state");
+	if (!code || !state) {
+		return new Response("Missing code or state parameter", { status: 400 });
+	}
+
+	// Everything below happens BEFORE the token endpoint is called, so an unsolicited
+	// or replayed callback never spends a code.
+	const cookieState = getOAuthStateCookie(request);
+	if (!cookieState || cookieState !== state) {
+		return new Response("OAuth state does not match this browser", {
+			status: 400,
+			headers: { "Set-Cookie": clearOAuthStateCookie() },
+		});
+	}
+
+	// Single use: reading it removes it, so a captured callback URL is spent.
+	const pending = await consumeOAuthState(state, env);
+	if (!pending) {
+		return new Response("OAuth state expired or already used", {
+			status: 400,
+			headers: { "Set-Cookie": clearOAuthStateCookie() },
+		});
 	}
 
 	// Exchange code for access token
@@ -49,6 +106,7 @@ export async function handleAuthCallback(url: URL, env: AuthEnv): Promise<Respon
 				client_id: env.GITHUB_CLIENT_ID,
 				client_secret: env.GITHUB_CLIENT_SECRET,
 				code,
+				code_verifier: pending.verifier,
 			}),
 		});
 		const tokenData = await tokenRes.json() as { access_token?: string; error?: string };
@@ -99,20 +157,15 @@ export async function handleAuthCallback(url: URL, env: AuthEnv): Promise<Respon
 		expirationTtl: 604800, // 7 days
 	});
 
-	// Return HTML that sets cookie and redirects back to openface.live
-	const html = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>Signing in...</title></head>
-<body>
-<script>
-document.cookie = "oface_session=${sessionToken}; path=/; max-age=604800; secure; samesite=none";
-window.location.href = "https://openface.live";
-</script>
-<noscript><p>Signed in. <a href="https://openface.live">Continue</a></p></noscript>
-</body></html>`;
+	// Set the cookie from the server so it can be HttpOnly. It was previously written
+	// by page script, which put a seven-day session token within reach of any
+	// same-origin script. Nothing in the site reads it — requests carry it
+	// automatically — so there is no reason for script to see it.
+	const headers = new Headers({ Location: pending.returnTo });
+	headers.append("Set-Cookie", buildSessionCookie(sessionToken));
+	headers.append("Set-Cookie", clearOAuthStateCookie());
 
-	return new Response(html, {
-		headers: { "Content-Type": "text/html; charset=utf-8" },
-	});
+	return new Response(null, { status: 302, headers });
 }
 
 /** GET /auth/me — check session, return user info */
@@ -147,7 +200,7 @@ export async function handleAuthLogout(request: Request, env: AuthEnv, cors: Rec
 	return new Response(JSON.stringify({ ok: true }), {
 		headers: {
 			"Content-Type": "application/json",
-			"Set-Cookie": "oface_session=; path=/; max-age=0; secure; samesite=none",
+			"Set-Cookie": clearSessionCookie(),
 			...cors,
 		},
 	});
