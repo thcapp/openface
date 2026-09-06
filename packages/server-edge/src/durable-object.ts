@@ -122,12 +122,17 @@ export class FaceRoom implements DurableObject {
 		if (url.pathname === "/api/speak" && request.method === "POST") {
 			try {
 				const data = await request.json() as Record<string, unknown>;
+				// See the self-hosted server: a sequence bump invalidates stale audio but
+				// does not promise any. Callers without an audio provider opt out so
+				// viewers fall back to speech synthesis without a dead wait.
+				const expectAudio = data.expectAudio !== false;
+				delete data.expectAudio;
 				this.audioSeq++;
 				data.state = data.state || "speaking";
 				mergeState(this.current, data);
 				this.resetIdleTimer();
 				this.broadcast();
-				const seqMsg = JSON.stringify({ type: "audio-seq", seq: this.audioSeq });
+				const seqMsg = JSON.stringify({ type: "audio-seq", seq: this.audioSeq, expectAudio });
 				this.broadcastToViewers(seqMsg);
 				return Response.json({ ok: true, seq: this.audioSeq, state: publicState(this.current) }, { headers: corsHeaders() });
 			} catch {

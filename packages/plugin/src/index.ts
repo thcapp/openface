@@ -233,6 +233,8 @@ const plugin = {
 			const displayText = content.replace(/```[\s\S]*?```/g, "[code]");
 			const speakRes = await push.speak({
 				text: displayText,
+				// Only claim audio is coming when a TTS provider will actually send it.
+				expectAudio: ttsEnabled,
 				emotion: blended.emotion,
 				intensity: blended.intensity,
 				...(blended.emotionSecondary && { emotionSecondary: blended.emotionSecondary, emotionBlend: blended.emotionBlend }),

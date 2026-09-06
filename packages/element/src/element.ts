@@ -63,6 +63,20 @@ export class OpenFaceElement extends HTMLElement {
 	private ttsSpeaking = false;
 	private ttsLastText = "";
 	private ttsPendingText = "";
+	/**
+	 * Audio playback lifecycle. A sequence announcement is a claim that audio *may*
+	 * follow — it is not proof any exists, so it must not permanently silence TTS.
+	 *   idle    - nothing expected
+	 *   pending - sequence announced, waiting for a first playable chunk (bounded)
+	 *   active  - real audio arrived; external audio outranks TTS
+	 *   failed  - the bounded wait elapsed with no audio; TTS fallback is allowed
+	 */
+	private audioPhase: "idle" | "pending" | "active" | "failed" = "idle";
+	private audioPendingTimer: ReturnType<typeof setTimeout> | null = null;
+	/** Bounded wait for a first chunk before falling back to TTS. */
+	private audioPendingTimeoutMs = 1500;
+	/** Text held while pending, spoken only if the audio never turns up. */
+	private audioDeferredText: string | null = null;
 	private audioAuthoritative = false;
 
 	// Audio playback system
@@ -169,7 +183,7 @@ export class OpenFaceElement extends HTMLElement {
 
 		this.stopAmplitudeLoop();
 		this.audioQueue = [];
-		this.audioAuthoritative = false;
+		this.audioReleaseAuthority();
 		this.audioCtx?.close().catch(() => {});
 		this.audioCtx = null;
 
@@ -485,37 +499,7 @@ export class OpenFaceElement extends HTMLElement {
 					}));
 				}
 				// Audio messages
-					if (data.type === "audio-seq") {
-						// New speech — flush old queue if seq is higher
-						if (data.seq > this.audioSeq) {
-							this.audioSeq = data.seq;
-							this.audioQueue = [];
-							this.audioStreamEnded = false;
-							this.audioAuthoritative = true;
-							this.stopTts();
-						}
-					}
-					if (data.type === "audio" && this.audioEnabled && data.data) {
-						if (typeof data.seq === "number") {
-							if (data.seq < this.audioSeq) return;
-							if (data.seq > this.audioSeq) {
-								this.audioSeq = data.seq;
-								this.audioQueue = [];
-								this.audioStreamEnded = false;
-							}
-						}
-						this.audioAuthoritative = true;
-						this.stopTts();
-						this.handleAudioChunk(data.data);
-					}
-					if (data.type === "audio-done" && this.audioEnabled) {
-						if (typeof data.seq !== "number" || data.seq === this.audioSeq) {
-							this.audioStreamEnded = true;
-							if (!this.audioPlaying && this.audioQueue.length === 0) {
-								this.audioAuthoritative = false;
-							}
-						}
-					}
+				this.handleAudioMessage(data);
 			} catch { /* ignore */ }
 		};
 
@@ -531,7 +515,10 @@ export class OpenFaceElement extends HTMLElement {
 	}
 
 	private wsScheduleRetry(): void {
-		if (!this.serverUrl || this.isConnected) return;
+		// `isConnected` is the DOM attachment property, not the socket state. Only an
+		// attached element with a configured server should be reconnecting — the guard
+		// was inverted, so visible components never retried and detached ones did.
+		if (!this.serverUrl || !this.isConnected) return;
 		if (this.wsRetryTimer) clearTimeout(this.wsRetryTimer);
 		this.wsRetryTimer = setTimeout(
 			() => this.wsConnect(),
@@ -553,7 +540,7 @@ export class OpenFaceElement extends HTMLElement {
 			}
 			this.ws = null;
 		}
-		this.audioAuthoritative = false;
+		this.audioReleaseAuthority();
 	}
 
 	private onVisibilityChange = (): void => {
@@ -604,7 +591,7 @@ export class OpenFaceElement extends HTMLElement {
 				// All audio finished — return to idle
 				this.renderer?.setState({ amplitude: 0 });
 				this.stopAmplitudeLoop();
-				this.audioAuthoritative = false;
+				this.audioReleaseAuthority();
 				this.dispatchEvent(new CustomEvent("face-audio-ended", { bubbles: true, composed: true }));
 			}
 			return;
@@ -704,6 +691,90 @@ export class OpenFaceElement extends HTMLElement {
 		document.addEventListener("keydown", this.ttsActivate, { once: false });
 	}
 
+	/**
+	 * Route an audio protocol message through the playback lifecycle.
+	 * Split out of the socket handler so the lifecycle is directly testable.
+	 */
+	private handleAudioMessage(data: { type?: string; seq?: number; data?: string; expectAudio?: boolean }): void {
+		if (data.type === "audio-seq") {
+			if (typeof data.seq === "number" && data.seq > this.audioSeq) {
+				this.audioSeq = data.seq;
+				this.audioQueue = [];
+				this.audioStreamEnded = false;
+				// The bump always invalidates stale audio; only a sender that expects to
+				// deliver audio should hold TTS back. Absent field = older sender, so
+				// assume audio may follow and let the bounded timeout handle it.
+				if (data.expectAudio === false) this.audioReleaseAuthority();
+				else this.audioEnterPending();
+			}
+			return;
+		}
+
+		if (data.type === "audio" && this.audioEnabled && data.data) {
+			if (typeof data.seq === "number") {
+				if (data.seq < this.audioSeq) return;
+				if (data.seq > this.audioSeq) {
+					this.audioSeq = data.seq;
+					this.audioQueue = [];
+					this.audioStreamEnded = false;
+				}
+			}
+			this.audioEnterActive();
+			this.handleAudioChunk(data.data);
+			return;
+		}
+
+		if (data.type === "audio-done" && this.audioEnabled) {
+			if (typeof data.seq !== "number" || data.seq === this.audioSeq) {
+				this.audioStreamEnded = true;
+				if (!this.audioPlaying && this.audioQueue.length === 0) this.audioReleaseAuthority();
+			}
+		}
+	}
+
+	/** A sequence was announced. Cancel stale speech, but only wait a bounded time. */
+	private audioEnterPending(): void {
+		this.audioPhase = "pending";
+		this.audioAuthoritative = true;
+		this.stopTts();
+		this.audioClearPendingTimer();
+		this.audioPendingTimer = setTimeout(() => this.audioPendingExpired(), this.audioPendingTimeoutMs);
+	}
+
+	/** Real, playable audio arrived — external audio outranks TTS. */
+	private audioEnterActive(): void {
+		this.audioPhase = "active";
+		this.audioAuthoritative = true;
+		this.audioDeferredText = null;
+		this.audioClearPendingTimer();
+		this.stopTts();
+	}
+
+	/** The bounded wait elapsed with no audio. Release authority and fall back. */
+	private audioPendingExpired(): void {
+		if (this.audioPhase !== "pending") return;
+		this.audioClearPendingTimer();
+		this.audioPhase = "failed";
+		this.audioAuthoritative = false;
+		const deferred = this.audioDeferredText;
+		this.audioDeferredText = null;
+		if (deferred) this.ttsSpeak(deferred);
+	}
+
+	private audioReleaseAuthority(): void {
+		this.audioClearPendingTimer();
+		this.audioPhase = "idle";
+		this.audioAuthoritative = false;
+		this.audioDeferredText = null;
+	}
+
+	private audioClearPendingTimer(): void {
+		if (this.audioPendingTimer) {
+			clearTimeout(this.audioPendingTimer);
+			this.audioPendingTimer = null;
+		}
+	}
+
 	private stopTts(): void {
 		if (!window.speechSynthesis) return;
 		if (window.speechSynthesis.speaking || window.speechSynthesis.pending || this.ttsSpeaking) {
@@ -715,6 +786,12 @@ export class OpenFaceElement extends HTMLElement {
 
 	private ttsSpeak(text: string): void {
 		if (!this.ttsEnabled || !text || !window.speechSynthesis) return;
+		// Hold the text while audio is merely promised — if it never arrives the
+		// bounded timeout speaks this instead of dropping it silently.
+		if (this.audioPhase === "pending") {
+			this.audioDeferredText = text;
+			return;
+		}
 		if (this.audioAuthoritative || this.audioPlaying || this.audioQueue.length > 0) return;
 		if (text === this.ttsLastText && this.ttsSpeaking) return;
 

@@ -264,11 +264,16 @@ export const server = Bun.serve<WsData>({
 			}
 			try {
 				const data = await req.json() as Record<string, unknown>;
+				// A sequence bump always invalidates stale audio, but it does not prove
+				// playable audio will follow. Callers with no audio provider say so, and
+				// viewers then fall back to speech synthesis immediately instead of waiting.
+				const expectAudio = data.expectAudio !== false;
+				delete data.expectAudio;
 				audioSeq++;
 				data.state = data.state || "speaking";
 				handleStateUpdate(data);
 				// Broadcast seq so viewers can flush old audio queue
-				const seqMsg = JSON.stringify({ type: "audio-seq", seq: audioSeq });
+				const seqMsg = JSON.stringify({ type: "audio-seq", seq: audioSeq, expectAudio });
 				for (const ws of viewers) ws.send(seqMsg);
 				log("SPEAK", `seq=${audioSeq} text="${String(data.text || "").slice(0, 50)}"`);
 				return Response.json({ ok: true, seq: audioSeq, state: publicState(currentState) }, { headers: CORS_HEADERS });
