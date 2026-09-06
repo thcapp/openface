@@ -7,7 +7,22 @@ function escapeHtml(s: string): string {
 		.replace(/'/g, "&#039;");
 }
 
-export function renderViewerHtml(username: string, facePack: string, host: string): string {
+export interface ViewerOptions {
+	/** A resolved definition to load directly, for gallery or snapshot appearances. */
+	pack?: unknown;
+	/** Shown when the configured appearance could not be loaded. */
+	notice?: string;
+}
+
+/**
+ * Embed JSON in a script block. `<` is escaped so a definition containing the
+ * string "</script>" cannot break out of the block.
+ */
+function embedJson(value: unknown): string {
+	return JSON.stringify(value).replace(/</g, "\\u003c");
+}
+
+export function renderViewerHtml(username: string, facePack: string, host: string, opts: ViewerOptions = {}): string {
 	const safeUsername = escapeHtml(username);
 	const safeFacePack = escapeHtml(facePack);
 	const safeHost = escapeHtml(host);
@@ -20,6 +35,8 @@ export function renderViewerHtml(username: string, facePack: string, host: strin
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; overflow: hidden; background: #0a0a0f; }
+  #face-notice { position: fixed; top: 0; left: 0; right: 0; z-index: 10; padding: 8px 14px;
+    background: #4a2020; color: #ffd7d7; font: 500 13px/1.4 system-ui, sans-serif; text-align: center; }
   open-face { width: 100%; height: 100%; display: block; }
 </style>
 </head>
@@ -32,12 +49,30 @@ export function renderViewerHtml(username: string, facePack: string, host: strin
   emotion="neutral"
   audio-enabled
 ></open-face>
+${opts.pack ? `<script type="application/json" id="face-pack-data">${embedJson(opts.pack)}</script>` : ""}
+${opts.notice ? `<div id="face-notice" role="status">${escapeHtml(opts.notice)}</div>` : ""}
 <script type="module" src="/open-face.js"></script>
 <script>
   (function () {
     const params = new URLSearchParams(location.search);
     const face = document.getElementById("face");
     if (!face) return;
+
+    // A gallery or custom appearance is delivered inline — the face attribute can
+    // only name a bundled pack, which is why published designs used to render as
+    // Default. Wait for the element to upgrade before handing it the definition.
+    const packEl = document.getElementById("face-pack-data");
+    if (packEl) {
+      try {
+        const def = JSON.parse(packEl.textContent);
+        customElements.whenDefined("open-face").then(function () {
+          if (typeof face.loadFaceDefinition === "function") face.loadFaceDefinition(def);
+        });
+      } catch (err) {
+        console.error("[open-face] could not parse the configured appearance", err);
+      }
+    }
+
     const ttsParam = params.get("tts");
     const enabled = ttsParam !== null && !["0", "false", "off", "no"].includes(String(ttsParam).toLowerCase());
     if (!enabled) return;

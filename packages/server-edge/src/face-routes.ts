@@ -1,3 +1,4 @@
+import { parsePackRef, resolvePack } from "@openface/renderer/pack-resolver";
 import { getSession, getSessionToken, oauthEnabled } from "./auth-session.js";
 import { validateClaimUsername } from "./username-policy.js";
 import { renderUnclaimedHtml, renderViewerHtml } from "./viewer-pages.js";
@@ -32,20 +33,22 @@ export async function checkFaceAuth(request: Request, url: URL, username: string
 	return false;
 }
 
+/** The parts of a stored face record that decide what the viewer renders. */
+interface FaceAppearanceRecord {
+	face?: string;
+	config?: { pack?: unknown };
+}
+
 /** Serve the face viewer HTML with the username's WebSocket URL injected */
 export async function serveFaceViewer(username: string, env: FaceRoutesEnv, cors: Record<string, string>): Promise<Response> {
-	// Check if face is claimed (if KV available)
-	let facePack = "default";
+	const host = new URL("", "https://oface.io").host;
+	let record: FaceAppearanceRecord | null = null;
 	let claimed = true; // assume claimed if no KV
 
 	if (env.FACE_REGISTRY) {
 		try {
-			const record = await env.FACE_REGISTRY.get(`face:${username}`, "json") as { face?: string } | null;
-			if (record) {
-				facePack = record.face || "default";
-			} else {
-				claimed = false;
-			}
+			record = await env.FACE_REGISTRY.get(`face:${username}`, "json") as FaceAppearanceRecord | null;
+			if (!record) claimed = false;
 		} catch { /* KV unavailable */ }
 	}
 
@@ -53,10 +56,39 @@ export async function serveFaceViewer(username: string, env: FaceRoutesEnv, cors
 		return serveUnclaimedPage(username, cors);
 	}
 
-	const html = renderViewerHtml(username, facePack, new URL("", "https://oface.io").host);
-	return new Response(html, {
+	const page = (html: string) => new Response(html, {
 		headers: { "Content-Type": "text/html; charset=utf-8", ...cors },
 	});
+
+	// An appearance applied through the config API wins over the claim-time choice.
+	const ref = parsePackRef(record?.config?.pack ?? record?.face ?? "default");
+
+	// Bundled packs are fetched by the element itself, so they need no inlining and
+	// keep their shared cache. Only gallery and custom appearances are resolved here —
+	// those are the ones the viewer previously could not express and rendered as Default.
+	if (!ref || ref.kind === "builtin") {
+		return page(renderViewerHtml(username, ref?.id ?? "default", host));
+	}
+
+	const resolved = await resolvePack(ref, {
+		builtin: async () => null,
+		// Read the record directly rather than through the API, so simply viewing a
+		// face does not count as a gallery download.
+		gallery: async (id: string) => (env.FACE_REGISTRY
+			? await env.FACE_REGISTRY.get(`gallery:${id}`, "json")
+			: null),
+	});
+
+	if (!resolved.ok) {
+		// Never present a different character as this face. Render the default look,
+		// but say plainly that the configured appearance failed rather than passing
+		// the substitute off as the real thing.
+		return page(renderViewerHtml(username, "default", host, {
+			notice: `This face's configured appearance could not be loaded (${resolved.error}). Showing the default look.`,
+		}));
+	}
+
+	return page(renderViewerHtml(username, "default", host, { pack: resolved.pack }));
 }
 
 /** Serve dashboard pointing at a specific face */

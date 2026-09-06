@@ -24,6 +24,8 @@ export type {
 export { STATES, EMOTIONS, DEFAULT_STATE_COLORS, DEFAULT_EMOTION_COLORS } from "./types.js";
 export { dlerp, hexToRGB, rgbToHex } from "./math.js";
 export { createDefaultGeometry, applyFaceDefinition, createStateColors, createEmotionColors } from "./face-loader.js";
+export { parsePackRef, resolvePack, serializePackRef, validatePack } from "./pack-resolver.js";
+export type { PackRef, PackSource, ResolveResult } from "./pack-resolver.js";
 export {
 	hslToHex,
 	hexToHSL,

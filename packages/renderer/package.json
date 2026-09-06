@@ -9,6 +9,10 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
+    },
+    "./pack-resolver": {
+      "import": "./src/pack-resolver.ts",
+      "types": "./src/pack-resolver.ts"
     }
   },
   "scripts": {
