@@ -435,7 +435,17 @@
     const wsP = location.protocol === "https:" ? "wss:" : "ws:";
     const httpP = location.protocol === "https:" ? "https:" : "http:";
     const srv = params.get("server") || (wsP + "//" + location.host + "/ws/viewer");
-    const pk = params.get("face") || "default";
+
+    // Three different things used to share one `face` parameter: the account that
+    // owns the face, the appearance to render, and the API path. The hosted redirect
+    // sent face=<username>, which was then looked up as a pack name, missed, and
+    // silently swapped in an unrelated character. They are separate now.
+    //   user - the account/face username, used for per-face API paths
+    //   pack - the appearance to show
+    // `face` is still read as a fallback identity so older links keep working.
+    const faceUser = params.get("user") || params.get("face") || "";
+    const faceToken = params.get("token");
+    const pk = params.get("pack") || "default";
 
     // ── DOM refs ──
     const overlay = document.getElementById("overlay");
@@ -461,6 +471,55 @@
     let curPack = pk;
     let PACKS = DEFAULT_PACKS.slice();
     let PACK_FILES = Object.assign({}, DEFAULT_PACK_FILES);
+    // ── Config persistence ──
+    // Rescued from packages/server-edge/public/dashboard.html, where it was the only
+    // copy: that directory is gitignored build output that no build step produces, so
+    // this had never been in version control and any clean would have lost it.
+    function configUrl() {
+      if (!faceUser) return null;
+      var srvUrl = new URL(srv);
+      var apiBase = (srvUrl.protocol === "wss:" ? "https:" : "http:") + "//" + srvUrl.host;
+      return apiBase + "/" + encodeURIComponent(faceUser) + "/api/config";
+    }
+
+    function saveConfig() {
+      var url = configUrl();
+      if (!url || !faceToken) return; // writes need the face key
+      fetch(url, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + faceToken,
+        },
+        body: JSON.stringify({
+          face: curPack,
+          config: {
+            head: curHeadMode,
+            headShape: curHeadShape,
+            body: curBodyMode,
+            bodyShape: curBodyShape,
+          },
+        }),
+      }).catch(function () { /* best-effort */ });
+    }
+
+    async function loadSavedConfig() {
+      var url = configUrl();
+      if (!url) return;
+      try {
+        var res = await fetch(url);
+        if (!res.ok) return;
+        var data = await res.json();
+        if (data.face && typeof data.face === "string") curPack = data.face;
+        if (data.config) {
+          if (data.config.head) curHeadMode = data.config.head;
+          if (data.config.headShape) curHeadShape = data.config.headShape;
+          if (data.config.body) curBodyMode = data.config.body;
+          if (data.config.bodyShape) curBodyShape = data.config.bodyShape;
+        }
+      } catch (err) { /* ignore — the dashboard still works unsaved */ }
+    }
+
     let curHeadMode = "pack";
     let curHeadShape = "pack";
     let curBodyMode = "pack";
@@ -725,6 +784,7 @@
         var withOverrides = applySelectionOverrides(baseDef);
         face.loadFaceDefinition(withOverrides);
         face.setAttribute("loaded-face", curPack);
+        saveConfig();
       } catch (err) {
         console.warn("[dashboard] face override load failed; falling back to attribute load", err);
         face.setAttribute("face", curPack);
@@ -1094,7 +1154,12 @@
 
     // ── Init ──
     PACKS = await loadPackIds();
-    if (!PACKS.includes(curPack) && PACKS.length) curPack = PACKS[0];
+    await loadSavedConfig();
+    // Fall back to the default pack, not to an arbitrary first entry — showing some
+    // other character is worse than showing the known default.
+    if (!PACKS.includes(curPack) && PACKS.length) {
+      curPack = PACKS.includes("default") ? "default" : PACKS[0];
+    }
     bldCtrl();
     await applyFaceSelection();
     initCollapsible();
@@ -1155,14 +1220,17 @@
     // Chat sends to face server API
     var srvUrl = new URL(srv);
     var apiBase = (srvUrl.protocol === "wss:" ? "https:" : "http:") + "//" + srvUrl.host;
-    var chatToken = params.get("token");
 
     chatSend.addEventListener("click", function() {
       var text = chatIn.value.trim();
       if (!text) return;
       addChat("user", text);
       chatIn.value = "";
-      var chatUrl = new URL("/api/chat", apiBase);
+      // Chat is a per-face endpoint. Building it from the host alone dropped the
+      // username segment, so hosted chat never reached its handler. It also requires
+      // the face key — an unauthenticated chat route is not an acceptable fix.
+      var chatPath = faceUser ? "/" + encodeURIComponent(faceUser) + "/api/chat" : "/api/chat";
+      var chatUrl = new URL(chatPath, apiBase);
       if (chatToken) chatUrl.searchParams.set("token", chatToken);
       fetch(chatUrl.toString(), {
         method: "POST",

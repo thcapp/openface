@@ -93,3 +93,17 @@ describe("hosted viewer appearance resolution", () => {
 		expect(html).toContain("\\u003c/script");
 	});
 });
+
+describe("dashboard identity", () => {
+	test("the redirect names the account explicitly, and keeps the legacy param", async () => {
+		const { serveFaceDashboard } = await import("../src/face-routes.js");
+		const res = serveFaceDashboard("alice");
+		const loc = new URL(res.headers.get("Location") as string, "https://oface.io");
+
+		expect(res.status).toBe(302);
+		expect(loc.searchParams.get("user")).toBe("alice");
+		expect(loc.searchParams.get("server")).toBe("wss://oface.io/alice/ws/viewer");
+		// still sent so already-deployed dashboards do not regress
+		expect(loc.searchParams.get("face")).toBe("alice");
+	});
+});

@@ -94,10 +94,18 @@ export async function serveFaceViewer(username: string, env: FaceRoutesEnv, cors
 /** Serve dashboard pointing at a specific face */
 export function serveFaceDashboard(username: string): Response {
 	const wsUrl = `wss://oface.io/${username}/ws/viewer`;
-	// Redirect to dashboard with server param
+	// `user` is the account that owns this face. It used to be sent as `face`, which
+	// the dashboard then looked up as a pack name, missed, and replaced with an
+	// unrelated character. `face` is still sent so already-deployed dashboards keep
+	// working; newer ones read `user` for identity and `pack` for appearance.
+	const params = new URLSearchParams({
+		server: wsUrl,
+		user: username,
+		face: username,
+	});
 	return new Response(null, {
 		status: 302,
-		headers: { Location: `/dashboard?server=${encodeURIComponent(wsUrl)}&face=${encodeURIComponent(username)}` },
+		headers: { Location: `/dashboard?${params}` },
 	});
 }
 
